@@ -5,9 +5,19 @@
 
 namespace display {
 
+enum class InitResult {
+  kOk,
+  kObjectAllocationFailed,
+  kPsramUnavailable,
+  kFramebufferUnavailable,
+  kDrawBufferAllocationFailed,
+  kLvglRegistrationFailed,
+};
+
 // Initializes the panel and LVGL. The PCF8574 panel reset sequence must
-// have completed first. Returns false if allocation fails.
-bool init();
+// have completed first.
+InitResult init();
+const char* initResultMessage(InitResult result);
 
 void setBacklight(uint8_t level);  // 0..255
 

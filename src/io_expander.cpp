@@ -10,36 +10,41 @@ bool IoExpander::begin() {
   if (Wire.endTransmission() != 0) {
     return false;
   }
-  write(0xFF);
-  return true;
+  return write(0xFF);
 }
 
-void IoExpander::panelPowerOnReset() {
+bool IoExpander::panelPowerOnReset() {
   // LCD power on, button/touch lines high, both resets asserted (low).
   shadow_ = 0xFF;
   shadow_ &= ~(1 << PCF_BIT_LCD_RST);
   shadow_ &= ~(1 << PCF_BIT_TOUCH_RST);
-  write(shadow_);
+  if (!write(shadow_)) {
+    return false;
+  }
   delay(20);
   // Release resets; ST7701 wants >120ms before init commands.
   shadow_ |= (1 << PCF_BIT_LCD_RST) | (1 << PCF_BIT_TOUCH_RST);
-  write(shadow_);
+  if (!write(shadow_)) {
+    return false;
+  }
   delay(150);
+  return true;
 }
 
-bool IoExpander::buttonDown() {
+bool IoExpander::readButton(bool& down) {
   uint8_t value;
   if (!read(value)) {
     return false;
   }
-  return (value & (1 << PCF_BIT_ENC_BTN)) == 0;  // active low
+  down = (value & (1 << PCF_BIT_ENC_BTN)) == 0;  // active low
+  return true;
 }
 
-void IoExpander::write(uint8_t value) {
+bool IoExpander::write(uint8_t value) {
   shadow_ = value;
   Wire.beginTransmission(PCF8574_ADDR);
   Wire.write(shadow_);
-  Wire.endTransmission();
+  return Wire.endTransmission() == 0;
 }
 
 bool IoExpander::read(uint8_t& value) {

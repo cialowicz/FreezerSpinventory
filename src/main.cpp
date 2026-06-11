@@ -22,6 +22,14 @@ RotaryEncoder knob;
 uint32_t lastActivityMs = 0;
 uint32_t lastSaveAttemptMs = 0;
 bool savePending = false;
+uint8_t consecutiveButtonReadErrors = 0;
+
+enum class ButtonEvent {
+  kNotPolled,
+  kNoChange,
+  kPressed,
+  kReadError,
+};
 
 void markActivity(uint32_t now) {
   lastActivityMs = now;
@@ -35,29 +43,42 @@ void onCommit(uint32_t now) {
   }
 }
 
+[[noreturn]] void restartAfterStartupFailure(const char* message) {
+  Serial.println(message);
+  Serial.println("Restarting in 3 seconds");
+  delay(3000);
+  ESP.restart();
+  while (true) {
+    delay(1000);
+  }
+}
+
 // Debounced press-edge detection for the knob button (polled over I2C).
-bool buttonPressed(uint32_t now) {
+ButtonEvent pollButton(uint32_t now) {
   static uint32_t lastPollMs = 0;
   static bool rawPrev = false;
   static bool stable = false;
   static uint32_t rawSinceMs = 0;
 
   if (now - lastPollMs < 15) {
-    return false;
+    return ButtonEvent::kNotPolled;
   }
   lastPollMs = now;
 
-  bool raw = expander.buttonDown();
+  bool raw = false;
+  if (!expander.readButton(raw)) {
+    return ButtonEvent::kReadError;
+  }
   if (raw != rawPrev) {
     rawPrev = raw;
     rawSinceMs = now;
-    return false;
+    return ButtonEvent::kNoChange;
   }
   if (raw != stable && now - rawSinceMs >= 30) {
     stable = raw;
-    return stable;  // true only on the press edge
+    return stable ? ButtonEvent::kPressed : ButtonEvent::kNoChange;
   }
-  return false;
+  return ButtonEvent::kNoChange;
 }
 
 }  // namespace
@@ -69,12 +90,15 @@ void setup() {
   Wire.setClock(400000);
 
   if (!expander.begin()) {
-    Serial.println("PCF8574 expander not found at 0x21");
+    restartAfterStartupFailure("PCF8574 expander initialization failed");
   }
-  expander.panelPowerOnReset();
+  if (!expander.panelPowerOnReset()) {
+    restartAfterStartupFailure("Panel reset sequence failed");
+  }
 
-  if (!display::init()) {
-    Serial.println("Display init failed");
+  const display::InitResult displayResult = display::init();
+  if (displayResult != display::InitResult::kOk) {
+    restartAfterStartupFailure(display::initResultMessage(displayResult));
   }
 
   const storage::LoadResult loadResult = storage::load(model);
@@ -105,13 +129,35 @@ void loop() {
     ui::refresh();
   }
 
-  if (buttonPressed(now)) {
+  const ButtonEvent buttonEvent = pollButton(now);
+  if (buttonEvent == ButtonEvent::kReadError) {
+    static uint32_t lastButtonErrorLogMs = 0;
+    consecutiveButtonReadErrors++;
+    if (now - lastButtonErrorLogMs >= 1000) {
+      Serial.println("Knob button I2C read failed");
+      lastButtonErrorLogMs = now;
+    }
+    if (consecutiveButtonReadErrors >= 5) {
+      Serial.println("Reinitializing I2C bus");
+      Wire.end();
+      delay(5);
+      Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL);
+      Wire.setClock(400000);
+      if (!expander.begin()) {
+        Serial.println("PCF8574 recovery failed");
+      }
+      consecutiveButtonReadErrors = 0;
+    }
+  } else if (buttonEvent == ButtonEvent::kPressed) {
+    consecutiveButtonReadErrors = 0;
     bool committed = model.click();
     if (committed) {
       onCommit(now);
     }
     markActivity(now);
     ui::refresh();
+  } else if (buttonEvent == ButtonEvent::kNoChange) {
+    consecutiveButtonReadErrors = 0;
   }
 
   // Walked away mid-edit: commit whatever is on screen and return to browse.

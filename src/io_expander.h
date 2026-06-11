@@ -12,13 +12,14 @@ class IoExpander {
 
   // Power up the panel and pulse the LCD + touch reset lines.
   // Must run before the ST7701 init sequence is sent.
-  void panelPowerOnReset();
+  bool panelPowerOnReset();
 
-  // Raw debounced-by-caller button level; true while knob is held down.
-  bool buttonDown();
+  // Reads the raw button level. Returns false on an I2C error without
+  // modifying down.
+  bool readButton(bool& down);
 
  private:
-  void write(uint8_t value);
+  bool write(uint8_t value);
   bool read(uint8_t& value);
   // PCF8574 quasi-bidirectional: bits we read must stay written high.
   uint8_t shadow_ = 0xFF;

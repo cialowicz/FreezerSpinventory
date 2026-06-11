@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <Arduino_GFX_Library.h>
 #include <lvgl.h>
+#include <new>
 
 #include "config.h"
 
@@ -27,24 +28,36 @@ void flushCallback(lv_disp_drv_t* drv, const lv_area_t* area,
 
 }  // namespace
 
-bool init() {
-  bus = new Arduino_ESP32RGBPanel(
+InitResult init() {
+  bus = new (std::nothrow) Arduino_ESP32RGBPanel(
       PIN_LCD_CS, PIN_LCD_SCK, PIN_LCD_SDA,
       PIN_LCD_DE, PIN_LCD_VSYNC, PIN_LCD_HSYNC, PIN_LCD_PCLK,
       PIN_LCD_R0, PIN_LCD_R1, PIN_LCD_R2, PIN_LCD_R3, PIN_LCD_R4,
       PIN_LCD_G0, PIN_LCD_G1, PIN_LCD_G2, PIN_LCD_G3, PIN_LCD_G4, PIN_LCD_G5,
       PIN_LCD_B0, PIN_LCD_B1, PIN_LCD_B2, PIN_LCD_B3, PIN_LCD_B4);
+  if (bus == nullptr) {
+    return InitResult::kObjectAllocationFailed;
+  }
 
   // Timing values from Elecrow's reference code for this exact panel.
-  gfx = new Arduino_ST7701_RGBPanel(
+  gfx = new (std::nothrow) Arduino_ST7701_RGBPanel(
       bus, GFX_NOT_DEFINED /* RST handled by PCF8574 */, 0 /* rotation */,
       false /* IPS */, SCREEN_WIDTH, SCREEN_HEIGHT,
       st7701_type5_init_operations, sizeof(st7701_type5_init_operations),
       true /* BGR */,
       10 /* hsync FP */, 4 /* hsync PW */, 20 /* hsync BP */,
       10 /* vsync FP */, 4 /* vsync PW */, 20 /* vsync BP */);
+  if (gfx == nullptr) {
+    return InitResult::kObjectAllocationFailed;
+  }
+  if (!psramFound()) {
+    return InitResult::kPsramUnavailable;
+  }
 
   gfx->begin();
+  if (gfx->getFramebuffer() == nullptr) {
+    return InitResult::kFramebufferUnavailable;
+  }
   gfx->fillScreen(BLACK);
 
   ledcSetup(kBacklightChannel, 5000, 8);
@@ -60,7 +73,7 @@ bool init() {
     buf1 = (lv_color_t*)ps_malloc(bufPixels * sizeof(lv_color_t));
   }
   if (buf1 == nullptr) {
-    return false;
+    return InitResult::kDrawBufferAllocationFailed;
   }
   lv_disp_draw_buf_init(&drawBuf, buf1, nullptr, bufPixels);
 
@@ -70,9 +83,29 @@ bool init() {
   dispDrv.ver_res = SCREEN_HEIGHT;
   dispDrv.flush_cb = flushCallback;
   dispDrv.draw_buf = &drawBuf;
-  lv_disp_drv_register(&dispDrv);
+  if (lv_disp_drv_register(&dispDrv) == nullptr) {
+    return InitResult::kLvglRegistrationFailed;
+  }
 
-  return true;
+  return InitResult::kOk;
+}
+
+const char* initResultMessage(InitResult result) {
+  switch (result) {
+    case InitResult::kOk:
+      return "ok";
+    case InitResult::kObjectAllocationFailed:
+      return "display object allocation failed";
+    case InitResult::kPsramUnavailable:
+      return "PSRAM unavailable";
+    case InitResult::kFramebufferUnavailable:
+      return "display framebuffer unavailable";
+    case InitResult::kDrawBufferAllocationFailed:
+      return "LVGL draw buffer allocation failed";
+    case InitResult::kLvglRegistrationFailed:
+      return "LVGL display registration failed";
+  }
+  return "unknown display error";
 }
 
 void setBacklight(uint8_t level) {
