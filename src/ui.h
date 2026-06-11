@@ -10,7 +10,9 @@ void init(inv::InventoryModel* model);
 // Syncs all widgets to the current model state. Call after any model change.
 void refresh();
 
-// Brief "Saved" confirmation in the hint area.
+// Brief persistence status in the hint area.
+void showSavingToast();
 void showSavedToast();
+void showSaveFailedToast();
 
 }  // namespace ui

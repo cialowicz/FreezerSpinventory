@@ -147,4 +147,24 @@ void showSavedToast() {
   lv_timer_set_repeat_count(toastTimer, 1);
 }
 
+void showSavingToast() {
+  toastActive = true;
+  lv_label_set_text(hintLabel, "Saving...");
+  lv_obj_set_style_text_color(hintLabel, kHintGray, 0);
+  if (toastTimer != nullptr) {
+    lv_timer_del(toastTimer);
+    toastTimer = nullptr;
+  }
+}
+
+void showSaveFailedToast() {
+  toastActive = true;
+  lv_label_set_text(hintLabel, "Save failed - retrying");
+  lv_obj_set_style_text_color(hintLabel, kRed, 0);
+  if (toastTimer != nullptr) {
+    lv_timer_del(toastTimer);
+    toastTimer = nullptr;
+  }
+}
+
 }  // namespace ui

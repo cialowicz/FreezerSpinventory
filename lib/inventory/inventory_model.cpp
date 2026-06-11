@@ -3,12 +3,6 @@
 namespace inv {
 
 namespace {
-const char* const kNames[kItemCount] = {
-    "Chicken Breasts", "Chicken Tenderloins", "Chicken Wings",
-    "Chicken Nuggets", "Steaks",              "Salmon",
-    "White Fish",      "Ice Cream",
-};
-
 uint8_t clampQuantity(long q) {
   if (q < 0) return 0;
   if (q > kMaxQuantity) return kMaxQuantity;
@@ -18,7 +12,7 @@ uint8_t clampQuantity(long q) {
 
 InventoryModel::InventoryModel() {
   for (size_t i = 0; i < kItemCount; i++) {
-    items_[i] = Item{kNames[i], 0};
+    items_[i] = Item{kCatalog[i].id, kCatalog[i].name, 0};
   }
 }
 
@@ -59,6 +53,14 @@ void InventoryModel::setQuantity(size_t i, uint8_t q) {
     items_[i].quantity = clamped;
     dirty_ = true;
   }
+}
+
+void InventoryModel::restoreQuantities(
+    const uint8_t quantities[kItemCount]) {
+  for (size_t i = 0; i < kItemCount; i++) {
+    items_[i].quantity = clampQuantity(quantities[i]);
+  }
+  dirty_ = false;
 }
 
 }  // namespace inv

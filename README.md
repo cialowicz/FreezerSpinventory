@@ -22,11 +22,13 @@ No wiring required — everything is on the board. Power/flash over USB-C.
 - **Press** to edit the selected item; the accent ring turns amber.
 - **Turn** to raise/lower the count (0–50), **press** to save.
 - Walk away mid-edit and it auto-commits after 15s.
-- Counts persist to flash (NVS), debounced to limit wear.
+- Counts persist to flash (NVS), debounced to limit wear. The UI confirms only
+  after a verified write and retries transient failures.
 - Backlight dims after a minute idle; any input wakes it.
 - An item at 0 shows its count in red.
 
-Items are pre-baked in `lib/inventory/inventory_model.cpp`:
+Items and their stable persistence IDs are defined once in
+`lib/inventory/inventory_model.h`:
 Chicken Breasts, Chicken Tenderloins, Chicken Wings, Chicken Nuggets,
 Steaks, Salmon, White Fish, Ice Cream.
 

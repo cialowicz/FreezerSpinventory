@@ -13,10 +13,29 @@
 
 namespace inv {
 
-constexpr size_t kItemCount = 8;
 constexpr uint8_t kMaxQuantity = 50;
 
+struct CatalogItem {
+  uint16_t id;
+  const char* name;
+};
+
+// Stable IDs are persisted. Entries may be reordered without moving quantities
+// between products.
+constexpr CatalogItem kCatalog[] = {
+    {100, "Chicken Breasts"},
+    {110, "Chicken Tenderloins"},
+    {120, "Chicken Wings"},
+    {130, "Chicken Nuggets"},
+    {200, "Steaks"},
+    {300, "Salmon"},
+    {310, "White Fish"},
+    {400, "Ice Cream"},
+};
+constexpr size_t kItemCount = sizeof(kCatalog) / sizeof(kCatalog[0]);
+
 struct Item {
+  uint16_t id;
   const char* name;
   uint8_t quantity;
 };
@@ -47,6 +66,10 @@ class InventoryModel {
 
   // Direct write, used when loading persisted state. Clamps to kMaxQuantity.
   void setQuantity(size_t i, uint8_t q);
+
+  // Replaces all quantities from validated persisted state without marking the
+  // model dirty.
+  void restoreQuantities(const uint8_t quantities[kItemCount]);
 
   // True when committed quantities haven't been persisted yet.
   bool dirty() const { return dirty_; }

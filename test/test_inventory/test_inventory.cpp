@@ -3,6 +3,7 @@
 #include <unity.h>
 
 #include "inventory_model.h"
+#include "inventory_persistence.h"
 
 using inv::InventoryModel;
 using inv::kItemCount;
@@ -10,6 +11,24 @@ using inv::kMaxQuantity;
 
 void setUp() {}
 void tearDown() {}
+
+static uint32_t persistenceChecksum(const uint8_t* data, size_t size) {
+  uint32_t hash = 2166136261u;
+  for (size_t i = 0; i < size; i++) {
+    hash ^= data[i];
+    hash *= 16777619u;
+  }
+  return hash;
+}
+
+static void rewritePersistenceChecksum(uint8_t* data, size_t size) {
+  const uint32_t checksum =
+      persistenceChecksum(data, size - inv::persistence::kChecksumSize);
+  for (size_t i = 0; i < inv::persistence::kChecksumSize; i++) {
+    data[size - inv::persistence::kChecksumSize + i] =
+        static_cast<uint8_t>(checksum >> (8 * i));
+  }
+}
 
 static void test_initial_state() {
   InventoryModel m;
@@ -24,13 +43,9 @@ static void test_initial_state() {
 
 static void test_prebaked_item_names() {
   InventoryModel m;
-  const char* expected[] = {
-      "Chicken Breasts", "Chicken Tenderloins", "Chicken Wings",
-      "Chicken Nuggets", "Steaks",              "Salmon",
-      "White Fish",      "Ice Cream",
-  };
   for (size_t i = 0; i < kItemCount; i++) {
-    TEST_ASSERT_EQUAL_STRING(expected[i], m.item(i).name);
+    TEST_ASSERT_EQUAL_UINT16(inv::kCatalog[i].id, m.item(i).id);
+    TEST_ASSERT_EQUAL_STRING(inv::kCatalog[i].name, m.item(i).name);
   }
 }
 
@@ -140,6 +155,80 @@ static void test_rotate_zero_steps_is_noop() {
   TEST_ASSERT_TRUE(m.inEditMode());
 }
 
+static void test_restore_quantities_does_not_mark_dirty() {
+  InventoryModel m;
+  uint8_t quantities[kItemCount] = {1, 2, 3, 4, 5, 6, 7, 200};
+  m.restoreQuantities(quantities);
+  for (size_t i = 0; i < kItemCount - 1; i++) {
+    TEST_ASSERT_EQUAL_UINT8(i + 1, m.item(i).quantity);
+  }
+  TEST_ASSERT_EQUAL_UINT8(kMaxQuantity,
+                          m.item(kItemCount - 1).quantity);
+  TEST_ASSERT_FALSE(m.dirty());
+}
+
+static void test_persistence_round_trip() {
+  InventoryModel source;
+  for (size_t i = 0; i < kItemCount; i++) {
+    source.setQuantity(i, static_cast<uint8_t>(i + 3));
+  }
+  uint8_t encoded[inv::persistence::kEncodedSize] = {0};
+  TEST_ASSERT_TRUE(
+      inv::persistence::encode(source, encoded, sizeof(encoded)));
+
+  InventoryModel restored;
+  TEST_ASSERT_TRUE(
+      inv::persistence::decode(encoded, sizeof(encoded), restored));
+  for (size_t i = 0; i < kItemCount; i++) {
+    TEST_ASSERT_EQUAL_UINT8(source.item(i).quantity,
+                            restored.item(i).quantity);
+  }
+  TEST_ASSERT_FALSE(restored.dirty());
+}
+
+static void test_persistence_rejects_corruption_without_mutating_model() {
+  InventoryModel source;
+  source.setQuantity(0, 9);
+  uint8_t encoded[inv::persistence::kEncodedSize] = {0};
+  TEST_ASSERT_TRUE(
+      inv::persistence::encode(source, encoded, sizeof(encoded)));
+  encoded[8] ^= 0xFF;
+
+  InventoryModel restored;
+  restored.setQuantity(0, 4);
+  restored.clearDirty();
+  TEST_ASSERT_FALSE(
+      inv::persistence::decode(encoded, sizeof(encoded), restored));
+  TEST_ASSERT_EQUAL_UINT8(4, restored.item(0).quantity);
+  TEST_ASSERT_FALSE(restored.dirty());
+}
+
+static void test_persistence_maps_quantities_by_stable_id() {
+  InventoryModel source;
+  source.setQuantity(0, 11);
+  source.setQuantity(1, 22);
+  uint8_t encoded[inv::persistence::kEncodedSize] = {0};
+  TEST_ASSERT_TRUE(
+      inv::persistence::encode(source, encoded, sizeof(encoded)));
+
+  // Swap complete records while leaving their IDs attached to quantities.
+  for (size_t i = 0; i < inv::persistence::kEntrySize; i++) {
+    uint8_t tmp = encoded[inv::persistence::kHeaderSize + i];
+    encoded[inv::persistence::kHeaderSize + i] =
+        encoded[inv::persistence::kHeaderSize +
+                inv::persistence::kEntrySize + i];
+    encoded[inv::persistence::kHeaderSize +
+            inv::persistence::kEntrySize + i] = tmp;
+  }
+  rewritePersistenceChecksum(encoded, sizeof(encoded));
+
+  InventoryModel restored;
+  TEST_ASSERT_TRUE(
+      inv::persistence::decode(encoded, sizeof(encoded), restored));
+  TEST_ASSERT_EQUAL_UINT8(11, restored.item(0).quantity);
+  TEST_ASSERT_EQUAL_UINT8(22, restored.item(1).quantity);
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_initial_state);
@@ -154,5 +243,9 @@ int main(int, char**) {
   RUN_TEST(test_cancel_edit_discards_pending);
   RUN_TEST(test_set_quantity_clamps_and_marks_dirty);
   RUN_TEST(test_rotate_zero_steps_is_noop);
+  RUN_TEST(test_restore_quantities_does_not_mark_dirty);
+  RUN_TEST(test_persistence_round_trip);
+  RUN_TEST(test_persistence_rejects_corruption_without_mutating_model);
+  RUN_TEST(test_persistence_maps_quantities_by_stable_id);
   return UNITY_END();
 }

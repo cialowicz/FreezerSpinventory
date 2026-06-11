@@ -20,7 +20,7 @@ IoExpander expander;
 RotaryEncoder knob;
 
 uint32_t lastActivityMs = 0;
-uint32_t lastCommitMs = 0;
+uint32_t lastSaveAttemptMs = 0;
 bool savePending = false;
 
 void markActivity(uint32_t now) {
@@ -30,7 +30,8 @@ void markActivity(uint32_t now) {
 void onCommit(uint32_t now) {
   if (model.dirty()) {
     savePending = true;
-    lastCommitMs = now;
+    lastSaveAttemptMs = now;
+    ui::showSavingToast();
   }
 }
 
@@ -76,7 +77,16 @@ void setup() {
     Serial.println("Display init failed");
   }
 
-  storage::load(model);
+  const storage::LoadResult loadResult = storage::load(model);
+  if (loadResult == storage::LoadResult::kInvalid ||
+      loadResult == storage::LoadResult::kOpenFailed) {
+    Serial.println("Stored inventory could not be loaded");
+  } else if (loadResult == storage::LoadResult::kLoadedLegacy) {
+    const storage::SaveResult migrationResult = storage::save(model);
+    if (migrationResult != storage::SaveResult::kSaved) {
+      Serial.println("Legacy inventory migration failed");
+    }
+  }
   knob.begin(PIN_ENCODER_A, PIN_ENCODER_B, ENCODER_REVERSED);
   ui::init(&model);
 
@@ -99,7 +109,6 @@ void loop() {
     bool committed = model.click();
     if (committed) {
       onCommit(now);
-      ui::showSavedToast();
     }
     markActivity(now);
     ui::refresh();
@@ -113,9 +122,16 @@ void loop() {
   }
 
   // Debounced NVS write so rapid edits don't wear flash.
-  if (savePending && now - lastCommitMs >= SAVE_DEBOUNCE_MS) {
-    storage::save(model);
-    savePending = false;
+  if (savePending && now - lastSaveAttemptMs >= SAVE_DEBOUNCE_MS) {
+    lastSaveAttemptMs = now;
+    const storage::SaveResult result = storage::save(model);
+    if (result == storage::SaveResult::kSaved) {
+      savePending = false;
+      ui::showSavedToast();
+    } else {
+      ui::showSaveFailedToast();
+      Serial.println("Inventory save failed; retrying");
+    }
   }
 
   display::setBacklight(now - lastActivityMs >= BACKLIGHT_DIM_MS

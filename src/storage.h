@@ -5,8 +5,25 @@
 
 namespace storage {
 
-void load(inv::InventoryModel& model);
-// Writes all quantities and clears the model's dirty flag.
-void save(inv::InventoryModel& model);
+enum class LoadResult {
+  kLoaded,
+  kLoadedLegacy,
+  kNotFound,
+  kInvalid,
+  kOpenFailed,
+};
+
+enum class SaveResult {
+  kSaved,
+  kOpenFailed,
+  kWriteFailed,
+  kVerifyFailed,
+};
+
+LoadResult load(inv::InventoryModel& model);
+
+// Writes and verifies all quantities. The model is marked clean only after a
+// successful read-back.
+SaveResult save(inv::InventoryModel& model);
 
 }  // namespace storage
