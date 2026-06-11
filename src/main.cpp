@@ -5,6 +5,8 @@
 #include <Wire.h>
 #include <lvgl.h>
 
+#include "app_controller.h"
+#include "button_debouncer.h"
 #include "config.h"
 #include "display.h"
 #include "encoder.h"
@@ -18,30 +20,18 @@ namespace {
 inv::InventoryModel model;
 IoExpander expander;
 RotaryEncoder knob;
-
-uint32_t lastActivityMs = 0;
-uint32_t lastSaveAttemptMs = 0;
-bool savePending = false;
+app::Controller controller(
+    model, app::Config(EDIT_TIMEOUT_MS, SAVE_DEBOUNCE_MS, SAVE_RETRY_MS,
+                       BACKLIGHT_DIM_MS, BACKLIGHT_FULL, BACKLIGHT_DIM));
+input::ButtonDebouncer buttonDebouncer(15, 30);
 uint8_t consecutiveButtonReadErrors = 0;
 
-enum class ButtonEvent {
+enum class ButtonPollResult {
   kNotPolled,
   kNoChange,
   kPressed,
   kReadError,
 };
-
-void markActivity(uint32_t now) {
-  lastActivityMs = now;
-}
-
-void onCommit(uint32_t now) {
-  if (model.dirty()) {
-    savePending = true;
-    lastSaveAttemptMs = now;
-    ui::showSavingToast();
-  }
-}
 
 [[noreturn]] void restartAfterStartupFailure(const char* message) {
   Serial.println(message);
@@ -54,31 +44,20 @@ void onCommit(uint32_t now) {
 }
 
 // Debounced press-edge detection for the knob button (polled over I2C).
-ButtonEvent pollButton(uint32_t now) {
-  static uint32_t lastPollMs = 0;
-  static bool rawPrev = false;
-  static bool stable = false;
-  static uint32_t rawSinceMs = 0;
-
-  if (now - lastPollMs < 15) {
-    return ButtonEvent::kNotPolled;
+ButtonPollResult pollButton(uint32_t now) {
+  if (!buttonDebouncer.pollDue(now)) {
+    return ButtonPollResult::kNotPolled;
   }
-  lastPollMs = now;
 
   bool raw = false;
   if (!expander.readButton(raw)) {
-    return ButtonEvent::kReadError;
+    return ButtonPollResult::kReadError;
   }
-  if (raw != rawPrev) {
-    rawPrev = raw;
-    rawSinceMs = now;
-    return ButtonEvent::kNoChange;
+  const input::ButtonEvent event = buttonDebouncer.update(raw, now);
+  if (event == input::ButtonEvent::kPressed) {
+    return ButtonPollResult::kPressed;
   }
-  if (raw != stable && now - rawSinceMs >= 30) {
-    stable = raw;
-    return stable ? ButtonEvent::kPressed : ButtonEvent::kNoChange;
-  }
-  return ButtonEvent::kNoChange;
+  return ButtonPollResult::kNoChange;
 }
 
 }  // namespace
@@ -101,6 +80,7 @@ void setup() {
     restartAfterStartupFailure(display::initResultMessage(displayResult));
   }
 
+  bool migrationSavePending = false;
   const storage::LoadResult loadResult = storage::load(model);
   if (loadResult == storage::LoadResult::kInvalid ||
       loadResult == storage::LoadResult::kOpenFailed) {
@@ -109,12 +89,18 @@ void setup() {
     const storage::SaveResult migrationResult = storage::save(model);
     if (migrationResult != storage::SaveResult::kSaved) {
       Serial.println("Legacy inventory migration failed");
+      migrationSavePending = true;
     }
   }
   knob.begin(PIN_ENCODER_A, PIN_ENCODER_B, ENCODER_REVERSED);
   ui::init(&model);
 
-  lastActivityMs = millis();
+  const uint32_t now = millis();
+  controller.begin(now);
+  if (migrationSavePending) {
+    controller.scheduleSave(now);
+    ui::showSaveFailedToast();
+  }
   Serial.println("FreezerSpinventory ready");
 }
 
@@ -124,13 +110,14 @@ void loop() {
 
   int steps = knob.consumeSteps();
   if (steps != 0) {
-    model.rotate(steps);
-    markActivity(now);
-    ui::refresh();
+    const app::InputResult result = controller.rotate(steps, now);
+    if (result == app::InputResult::kModelChanged) {
+      ui::refresh();
+    }
   }
 
-  const ButtonEvent buttonEvent = pollButton(now);
-  if (buttonEvent == ButtonEvent::kReadError) {
+  const ButtonPollResult buttonEvent = pollButton(now);
+  if (buttonEvent == ButtonPollResult::kReadError) {
     static uint32_t lastButtonErrorLogMs = 0;
     consecutiveButtonReadErrors++;
     if (now - lastButtonErrorLogMs >= 1000) {
@@ -148,31 +135,30 @@ void loop() {
       }
       consecutiveButtonReadErrors = 0;
     }
-  } else if (buttonEvent == ButtonEvent::kPressed) {
+  } else if (buttonEvent == ButtonPollResult::kPressed) {
     consecutiveButtonReadErrors = 0;
-    bool committed = model.click();
-    if (committed) {
-      onCommit(now);
+    const app::InputResult result = controller.press(now);
+    if (result == app::InputResult::kCommitScheduled) {
+      ui::showSavingToast();
     }
-    markActivity(now);
-    ui::refresh();
-  } else if (buttonEvent == ButtonEvent::kNoChange) {
+    if (result == app::InputResult::kModelChanged ||
+        result == app::InputResult::kCommitScheduled) {
+      ui::refresh();
+    }
+  } else if (buttonEvent == ButtonPollResult::kNoChange) {
     consecutiveButtonReadErrors = 0;
   }
 
-  // Walked away mid-edit: commit whatever is on screen and return to browse.
-  if (model.inEditMode() && now - lastActivityMs >= EDIT_TIMEOUT_MS) {
-    model.click();
-    onCommit(now);
+  if (controller.tick(now) == app::TickResult::kEditCancelled) {
     ui::refresh();
+    ui::showEditCancelledToast();
   }
 
-  // Debounced NVS write so rapid edits don't wear flash.
-  if (savePending && now - lastSaveAttemptMs >= SAVE_DEBOUNCE_MS) {
-    lastSaveAttemptMs = now;
+  if (controller.saveDue(now)) {
     const storage::SaveResult result = storage::save(model);
-    if (result == storage::SaveResult::kSaved) {
-      savePending = false;
+    const bool saved = result == storage::SaveResult::kSaved;
+    controller.recordSaveResult(saved, now);
+    if (saved) {
       ui::showSavedToast();
     } else {
       ui::showSaveFailedToast();
@@ -180,9 +166,7 @@ void loop() {
     }
   }
 
-  display::setBacklight(now - lastActivityMs >= BACKLIGHT_DIM_MS
-                            ? BACKLIGHT_DIM
-                            : BACKLIGHT_FULL);
+  display::setBacklight(controller.backlightLevel());
 
   delay(5);
 }

@@ -21,10 +21,11 @@ No wiring required — everything is on the board. Power/flash over USB-C.
 - **Turn** the knob to spin through the item list (wraps around).
 - **Press** to edit the selected item; the accent ring turns amber.
 - **Turn** to raise/lower the count (0–50), **press** to save.
-- Walk away mid-edit and it auto-commits after 15s.
+- Walk away mid-edit and the pending change is discarded after 15s.
 - Counts persist to flash (NVS), debounced to limit wear. The UI confirms only
   after a verified write and retries transient failures.
-- Backlight dims after a minute idle; any input wakes it.
+- Backlight dims after a minute idle; the first input wakes it without changing
+  inventory state.
 - An item at 0 shows its count in red.
 
 Items and their stable persistence IDs are defined once in
@@ -50,8 +51,10 @@ If clockwise rotation moves the wrong way on your unit, flip
 ## Layout
 
 ```
-lib/inventory/    Pure inventory + interaction model (no hardware deps)
-test/             Host-side unit tests for the model (Unity)
+lib/inventory/    Pure inventory model + persistence format
+lib/app/          Pure application timing and interaction controller
+lib/input/        Pure button debounce and encoder decoding helpers
+test/             Host-side unit tests (Unity)
 src/              Firmware: display/LVGL, encoder, PCF8574, NVS, UI, main
 include/lv_conf.h LVGL 8.3 configuration
 ```

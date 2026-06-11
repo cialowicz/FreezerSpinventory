@@ -2,13 +2,9 @@
 
 #include <Arduino.h>
 
-RotaryEncoder* RotaryEncoder::instance_ = nullptr;
+#include "rotary_decoder.h"
 
-// Index: (previous state << 2) | current state of (A<<1 | B).
-// Invalid transitions (bounce skipping a phase) count as 0.
-static const int8_t kQuadratureLut[16] = {
-    0, -1, 1, 0, 1, 0, 0, -1, -1, 0, 0, 1, 0, 1, -1, 0,
-};
+RotaryEncoder* RotaryEncoder::instance_ = nullptr;
 
 void RotaryEncoder::begin(uint8_t pinA, uint8_t pinB, bool reversed) {
   pinA_ = pinA;
@@ -30,9 +26,9 @@ void IRAM_ATTR RotaryEncoder::isrTrampoline() {
 
 void IRAM_ATTR RotaryEncoder::handleIsr() {
   uint8_t current = (digitalRead(pinA_) << 1) | digitalRead(pinB_);
-  uint8_t index = ((state_ << 2) | current) & 0x0F;
+  const int8_t delta = input::quadratureDelta(state_, current);
   state_ = current;
-  count_ += kQuadratureLut[index];
+  count_ += delta;
 }
 
 int RotaryEncoder::consumeSteps() {
@@ -40,8 +36,6 @@ int RotaryEncoder::consumeSteps() {
   int32_t delta = count_;
   count_ = 0;
   interrupts();
-  accum_ += delta;
-  int steps = accum_ / 4;
-  accum_ -= steps * 4;
+  const int steps = input::consumeDetents(accum_, delta);
   return reversed_ ? -steps : steps;
 }

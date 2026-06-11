@@ -17,6 +17,8 @@ Arduino_ESP32RGBPanel* bus = nullptr;
 Arduino_ST7701_RGBPanel* gfx = nullptr;
 lv_disp_draw_buf_t drawBuf;
 lv_color_t* buf1 = nullptr;
+bool backlightInitialized = false;
+uint8_t backlightLevel = 0;
 
 void flushCallback(lv_disp_drv_t* drv, const lv_area_t* area,
                    lv_color_t* pixels) {
@@ -109,7 +111,12 @@ const char* initResultMessage(InitResult result) {
 }
 
 void setBacklight(uint8_t level) {
+  if (backlightInitialized && level == backlightLevel) {
+    return;
+  }
   ledcWrite(kBacklightChannel, level);
+  backlightLevel = level;
+  backlightInitialized = true;
 }
 
 }  // namespace display

@@ -14,5 +14,6 @@ void refresh();
 void showSavingToast();
 void showSavedToast();
 void showSaveFailedToast();
+void showEditCancelledToast();
 
 }  // namespace ui

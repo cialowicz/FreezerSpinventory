@@ -167,4 +167,15 @@ void showSaveFailedToast() {
   }
 }
 
+void showEditCancelledToast() {
+  toastActive = true;
+  lv_label_set_text(hintLabel, "Changes discarded");
+  lv_obj_set_style_text_color(hintLabel, kHintGray, 0);
+  if (toastTimer != nullptr) {
+    lv_timer_del(toastTimer);
+  }
+  toastTimer = lv_timer_create(toastTimerCb, 1200, nullptr);
+  lv_timer_set_repeat_count(toastTimer, 1);
+}
+
 }  // namespace ui
