@@ -35,9 +35,10 @@ Steaks, Salmon, White Fish, Ice Cream.
 
 ## Building
 
-Uses [PlatformIO](https://platformio.org/). The pinned `espressif32@6.5.0`
-platform provides arduino-esp32 2.0.14, the core version Elecrow's ST7701
-demo code targets.
+Uses [PlatformIO](https://platformio.org/). Platform, framework libraries, and
+the Arduino_GFX revision are pinned for reproducible builds. The
+`espressif32@6.5.0` platform provides arduino-esp32 2.0.14, the core version
+Elecrow's ST7701 demo code targets.
 
 ```sh
 pio run -e crowpanel -t upload   # build + flash over USB-C
@@ -59,6 +60,6 @@ src/              Firmware: display/LVGL, encoder, PCF8574, NVS, UI, main
 include/lv_conf.h LVGL 8.3 configuration
 ```
 
-The model (`InventoryModel`) owns all browse/edit/commit semantics and is
-fully unit-tested on the host; the firmware just feeds it encoder detents
-and button presses, and mirrors its state to the LVGL UI.
+`InventoryModel`, the persistence codec, input decoding, and the application
+timing controller are unit-tested on the host. The firmware layer handles
+hardware I/O, verified NVS writes, and mirroring state to the LVGL UI.
