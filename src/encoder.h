@@ -13,7 +13,7 @@ class RotaryEncoder {
   int consumeSteps();
 
  private:
-  static void isrTrampoline();
+  static void isrTrampoline(void* arg);
   void handleIsr();
 
   static RotaryEncoder* instance_;

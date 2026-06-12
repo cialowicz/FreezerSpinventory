@@ -47,6 +47,31 @@ static void test_missing_button_samples_do_not_change_state() {
       static_cast<int>(button.update(true, 100)));
 }
 
+static void test_button_held_at_boot_is_not_a_press() {
+  input::ButtonDebouncer button(15, 30);
+  // The first sample seeds the baseline: a button already held when the
+  // device boots must not generate a press event.
+  TEST_ASSERT_EQUAL_INT(
+      static_cast<int>(input::ButtonEvent::kNone),
+      static_cast<int>(button.update(true, 0)));
+  TEST_ASSERT_EQUAL_INT(
+      static_cast<int>(input::ButtonEvent::kNone),
+      static_cast<int>(button.update(true, 50)));
+  // Releasing and pressing again behaves normally afterwards.
+  TEST_ASSERT_EQUAL_INT(
+      static_cast<int>(input::ButtonEvent::kNone),
+      static_cast<int>(button.update(false, 60)));
+  TEST_ASSERT_EQUAL_INT(
+      static_cast<int>(input::ButtonEvent::kReleased),
+      static_cast<int>(button.update(false, 90)));
+  TEST_ASSERT_EQUAL_INT(
+      static_cast<int>(input::ButtonEvent::kNone),
+      static_cast<int>(button.update(true, 100)));
+  TEST_ASSERT_EQUAL_INT(
+      static_cast<int>(input::ButtonEvent::kPressed),
+      static_cast<int>(button.update(true, 130)));
+}
+
 static void test_quadrature_sequences_and_invalid_transition() {
   const uint8_t clockwise[] = {0, 2, 3, 1, 0};
   int transitions = 0;
@@ -72,6 +97,7 @@ int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_button_polling_and_debounce);
   RUN_TEST(test_missing_button_samples_do_not_change_state);
+  RUN_TEST(test_button_held_at_boot_is_not_a_press);
   RUN_TEST(test_quadrature_sequences_and_invalid_transition);
   RUN_TEST(test_detent_accumulator_carries_partial_steps);
   return UNITY_END();

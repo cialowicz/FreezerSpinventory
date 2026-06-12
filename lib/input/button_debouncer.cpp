@@ -14,7 +14,10 @@ bool ButtonDebouncer::pollDue(uint32_t now) {
 ButtonEvent ButtonDebouncer::update(bool down, uint32_t now) {
   if (!initialized_) {
     initialized_ = true;
+    // The first sample is the baseline: a button already held at boot must
+    // not debounce into a press event.
     rawDown_ = down;
+    stableDown_ = down;
     rawSinceMs_ = now;
   } else if (down != rawDown_) {
     rawDown_ = down;

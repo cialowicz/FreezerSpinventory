@@ -74,6 +74,9 @@ class InventoryModel {
   // True when committed quantities haven't been persisted yet.
   bool dirty() const { return dirty_; }
   void clearDirty() { dirty_ = false; }
+  // Marks the current state as not-yet-persisted, e.g. after loading from
+  // the legacy format that still needs to be rewritten in the current one.
+  void markDirty() { dirty_ = true; }
 
  private:
   Item items_[kItemCount];

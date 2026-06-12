@@ -95,11 +95,48 @@ static void test_timers_handle_millis_rollover() {
   TEST_ASSERT_TRUE(controller.saveDue(14));
 }
 
+static void test_recommit_during_debounce_restarts_timer() {
+  inv::InventoryModel model;
+  app::Controller controller(model, kConfig);
+  controller.begin(0);
+
+  controller.press(1);
+  controller.rotate(5, 2);
+  controller.press(3);  // first commit; save would be due at 23
+  controller.press(10);
+  controller.rotate(1, 11);
+  controller.press(12);  // second commit restarts the debounce window
+  TEST_ASSERT_FALSE(controller.saveDue(31));
+  TEST_ASSERT_TRUE(controller.saveDue(32));
+}
+
+static void test_commit_during_retry_window_uses_debounce_delay() {
+  inv::InventoryModel model;
+  app::Controller controller(model, kConfig);
+  controller.begin(0);
+
+  controller.press(1);
+  controller.rotate(5, 2);
+  controller.press(3);
+  TEST_ASSERT_TRUE(controller.saveDue(23));
+  controller.recordSaveResult(false, 23);  // retry would be due at 73
+
+  // A new commit supersedes the pending retry: the save is rescheduled on
+  // the (shorter) debounce delay, not the retry delay.
+  controller.press(30);
+  controller.rotate(1, 31);
+  controller.press(32);
+  TEST_ASSERT_FALSE(controller.saveDue(51));
+  TEST_ASSERT_TRUE(controller.saveDue(52));
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_commit_is_debounced_and_failed_save_retries);
   RUN_TEST(test_timeout_discards_pending_edit);
   RUN_TEST(test_first_input_after_dimming_only_wakes);
   RUN_TEST(test_timers_handle_millis_rollover);
+  RUN_TEST(test_recommit_during_debounce_restarts_timer);
+  RUN_TEST(test_commit_during_retry_window_uses_debounce_delay);
   return UNITY_END();
 }
