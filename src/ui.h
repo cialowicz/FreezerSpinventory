@@ -23,6 +23,8 @@ void showLoadFailedNotice();
 void showOverview();
 // Returns to the single-item carousel (no-op when already shown).
 void showCarousel();
+// Hit-test: the overview item index at screen-y, or -1 if outside the list.
+int overviewItemAt(int16_t y);
 
 // Call on any user input. Dismisses an active toast/notice so the hint area
 // reflects the interaction the user is actually having.

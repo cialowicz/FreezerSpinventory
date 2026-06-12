@@ -236,6 +236,21 @@ static void test_horizontal_swipe_browses_unless_editing() {
   TEST_ASSERT_EQUAL_size_t(1, model.selectedIndex());
 }
 
+static void test_tap_item_from_overview_selects_and_wakes() {
+  inv::InventoryModel model;
+  app::Controller controller(model, kConfig);
+  controller.begin(0);
+
+  controller.tick(150);
+  TEST_ASSERT_TRUE(controller.overviewActive());
+  TEST_ASSERT_EQUAL_INT(
+      static_cast<int>(app::InputResult::kModelChanged),
+      static_cast<int>(controller.tapItem(3, 160)));
+  TEST_ASSERT_FALSE(controller.overviewActive());
+  TEST_ASSERT_EQUAL_size_t(3, model.selectedIndex());
+  TEST_ASSERT_FALSE(model.inEditMode());
+}
+
 static void test_tap_wakes_and_postpones_idle() {
   inv::InventoryModel model;
   app::Controller controller(model, kConfig);
@@ -274,6 +289,7 @@ int main(int, char**) {
   RUN_TEST(test_vertical_swipe_in_browse_commits_directly);
   RUN_TEST(test_vertical_swipe_in_edit_adjusts_pending);
   RUN_TEST(test_horizontal_swipe_browses_unless_editing);
+  RUN_TEST(test_tap_item_from_overview_selects_and_wakes);
   RUN_TEST(test_tap_wakes_and_postpones_idle);
   return UNITY_END();
 }

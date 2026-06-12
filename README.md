@@ -26,7 +26,8 @@ No wiring required — everything is on the board. Power/flash over USB-C.
 - **Swipe** instead, if you prefer: left/right to change items, up/down to
   raise/lower the count (saved automatically, no edit mode needed).
 - After 7s idle the display switches to an at-a-glance list of every item
-  and its count; any touch or knob input returns to the carousel.
+  and its count; any touch or knob input returns to the carousel, and
+  tapping a row jumps straight to that item's count page.
 - Counts persist to flash (NVS), debounced to limit wear. The UI confirms only
   after a verified write and retries transient failures.
 - If stored counts can't be restored at boot, the display says

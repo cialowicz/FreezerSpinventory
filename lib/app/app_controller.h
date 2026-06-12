@@ -47,6 +47,10 @@ class Controller {
   InputResult swipeVertical(int direction, uint32_t now);
   InputResult tap(uint32_t now);
 
+  // Tap on an overview row: wakes and lands on that item's count page
+  // (unlike plain inputs, which only wake from the overview).
+  InputResult tapItem(size_t index, uint32_t now);
+
   TickResult tick(uint32_t now);
 
   void scheduleSave(uint32_t now);

@@ -57,6 +57,10 @@ class InventoryModel {
   // Edit: adjusts pending quantity.
   void rotate(int steps);
 
+  // Jumps the selection straight to item i (e.g. tapping an overview row).
+  // Ignored when out of range or while editing (selection is locked).
+  void select(size_t i);
+
   // Knob press. Returns true if a quantity was committed (i.e. we left edit
   // mode), so the caller knows when to schedule a save.
   bool click();

@@ -131,9 +131,20 @@ void pollTouch(uint32_t now) {
     case input::Gesture::kSwipeDown:
       applyInputResult(controller.swipeVertical(-1, now));
       break;
-    case input::Gesture::kTap:
+    case input::Gesture::kTap: {
+      // Tapping an overview row jumps straight to that item's count page;
+      // anywhere else a tap is just a wake/activity signal.
+      if (controller.overviewActive()) {
+        const int item = ui::overviewItemAt(swipeDetector.lastTapY());
+        if (item >= 0) {
+          controller.tapItem((size_t)item, now);
+          ui::showCarousel();
+          break;
+        }
+      }
       applyInputResult(controller.tap(now));
       break;
+    }
     default:
       break;
   }

@@ -233,6 +233,17 @@ static void test_persistence_maps_quantities_by_stable_id() {
   TEST_ASSERT_EQUAL_UINT8(22, restored.item(1).quantity);
 }
 
+static void test_select_jumps_to_item() {
+  InventoryModel m;
+  m.select(5);
+  TEST_ASSERT_EQUAL_size_t(5, m.selectedIndex());
+  m.select(kItemCount);  // out of range: ignored
+  TEST_ASSERT_EQUAL_size_t(5, m.selectedIndex());
+  m.click();             // editing: selection is locked
+  m.select(2);
+  TEST_ASSERT_EQUAL_size_t(5, m.selectedIndex());
+}
+
 static void test_adjust_selected_quantity_clamps_and_marks_dirty() {
   InventoryModel m;
   TEST_ASSERT_FALSE(m.adjustSelectedQuantity(-1));  // clamped at 0
@@ -401,6 +412,7 @@ int main(int, char**) {
   RUN_TEST(test_persistence_round_trip);
   RUN_TEST(test_persistence_rejects_corruption_without_mutating_model);
   RUN_TEST(test_persistence_maps_quantities_by_stable_id);
+  RUN_TEST(test_select_jumps_to_item);
   RUN_TEST(test_adjust_selected_quantity_clamps_and_marks_dirty);
   RUN_TEST(test_mark_dirty_sets_dirty);
   RUN_TEST(test_encode_rejects_null_and_small_buffer);

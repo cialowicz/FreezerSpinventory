@@ -84,6 +84,15 @@ InputResult Controller::tap(uint32_t now) {
   return InputResult::kIgnored;
 }
 
+InputResult Controller::tapItem(size_t index, uint32_t now) {
+  // Direct navigation: consume any idle state and select in one action.
+  dimmed_ = false;
+  overview_ = false;
+  markActivity(now);
+  model_.select(index);
+  return InputResult::kModelChanged;
+}
+
 TickResult Controller::tick(uint32_t now) {
   if (!dimmed_ && now - lastActivityMs_ >= config_.backlightDimMs) {
     dimmed_ = true;

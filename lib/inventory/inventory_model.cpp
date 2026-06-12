@@ -28,6 +28,13 @@ void InventoryModel::rotate(int steps) {
   }
 }
 
+void InventoryModel::select(size_t i) {
+  if (i >= kItemCount || editing_) {
+    return;
+  }
+  selected_ = i;
+}
+
 bool InventoryModel::click() {
   if (!editing_) {
     editing_ = true;

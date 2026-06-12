@@ -31,6 +31,12 @@ lv_obj_t* dots[inv::kItemCount] = {nullptr};
 lv_obj_t* overviewPanel = nullptr;
 lv_obj_t* overviewQtyLabels[inv::kItemCount] = {nullptr};
 
+// Overview geometry, shared by buildOverview() and the tap hit-test.
+constexpr lv_coord_t kOverviewRowHeight = 34;
+constexpr lv_coord_t kOverviewPanelWidth = 310;
+constexpr int kOverviewPanelTop =
+    (SCREEN_HEIGHT - (int)inv::kItemCount * kOverviewRowHeight) / 2;
+
 constexpr uint32_t kToastMs = 1200;
 
 bool toastActive = false;
@@ -38,7 +44,7 @@ lv_timer_t* toastTimer = nullptr;
 
 void setHintForMode() {
   if (model->inEditMode()) {
-    lv_label_set_text(hintLabel, "turn to adjust  -  pause to save");
+    lv_label_set_text(hintLabel, "press or pause to save");
   } else {
     lv_label_set_text(hintLabel, "press knob to edit");
   }
@@ -80,12 +86,9 @@ void setCarouselHidden(bool hidden) {
 // so the count column sits close to the names instead of hugging the round
 // bezel, and stays inside the safe area at the top and bottom rows.
 void buildOverview(lv_obj_t* scr) {
-  constexpr lv_coord_t kRowHeight = 34;
-  constexpr lv_coord_t kPanelWidth = 310;
-
   overviewPanel = lv_obj_create(scr);
-  lv_obj_set_size(overviewPanel, kPanelWidth,
-                  kRowHeight * (lv_coord_t)inv::kItemCount);
+  lv_obj_set_size(overviewPanel, kOverviewPanelWidth,
+                  kOverviewRowHeight * (lv_coord_t)inv::kItemCount);
   lv_obj_center(overviewPanel);
   lv_obj_set_style_bg_opa(overviewPanel, LV_OPA_TRANSP, 0);
   lv_obj_set_style_border_width(overviewPanel, 0, 0);
@@ -93,7 +96,7 @@ void buildOverview(lv_obj_t* scr) {
   lv_obj_clear_flag(overviewPanel, LV_OBJ_FLAG_SCROLLABLE);
 
   for (size_t i = 0; i < inv::kItemCount; i++) {
-    const lv_coord_t rowY = (lv_coord_t)(i * kRowHeight);
+    const lv_coord_t rowY = (lv_coord_t)(i * kOverviewRowHeight);
     lv_obj_t* name = lv_label_create(overviewPanel);
     lv_obj_set_style_text_font(name, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(name, kText, 0);
@@ -243,6 +246,14 @@ void showCarousel() {
   setHidden(overviewPanel, true);
   setCarouselHidden(false);
   refresh();
+}
+
+int overviewItemAt(int16_t y) {
+  const int row = ((int)y - kOverviewPanelTop) / (int)kOverviewRowHeight;
+  if (y < kOverviewPanelTop || row >= (int)inv::kItemCount) {
+    return -1;
+  }
+  return row;
 }
 
 void noteUserActivity() {

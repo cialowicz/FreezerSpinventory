@@ -26,6 +26,11 @@ class SwipeDetector {
   // the gesture completed by this sample, kNone otherwise.
   Gesture update(bool touched, int16_t x, int16_t y, uint32_t now);
 
+  // Position of the most recent tap (the last sampled touch point).
+  // Only meaningful immediately after update() returned kTap.
+  int16_t lastTapX() const { return lastX_; }
+  int16_t lastTapY() const { return lastY_; }
+
  private:
   int16_t minSwipePx_;
   uint32_t maxTapMs_;

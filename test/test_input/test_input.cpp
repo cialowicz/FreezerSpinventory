@@ -143,10 +143,13 @@ static void test_diagonal_swipe_uses_dominant_axis() {
 static void test_tap_and_subthreshold_motion() {
   input::SwipeDetector d(60, 300);
 
-  // Short press with little travel is a tap.
+  // Short press with little travel is a tap, and its position is kept so
+  // the firmware can hit-test it against UI rows.
   d.update(true, 240, 240, 0);
   d.update(true, 250, 245, 30);
   assertGesture(input::Gesture::kTap, d.update(false, 0, 0, 60));
+  TEST_ASSERT_EQUAL_INT16(250, d.lastTapX());
+  TEST_ASSERT_EQUAL_INT16(245, d.lastTapY());
 
   // A long lingering press with little travel is nothing.
   d.update(true, 240, 240, 1000);
