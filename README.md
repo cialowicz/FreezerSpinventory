@@ -7,7 +7,7 @@ rewrite of [FridgePinventory](https://github.com/cialowicz/FridgePinventory)
 
 ![FreezerSpinventory Demo Gif](docs/FreezerSpinventory.gif)
 
-<img src="docs/FreezerSpinventory.jpg" alt="FreezerSpinventory Image" width="600"/>
+<img src="docs/FreezerSpinventory.jpg" alt="FreezerSpinventory Image" width="480"/>
 
 ## Hardware
 
