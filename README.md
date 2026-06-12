@@ -5,6 +5,8 @@ ESP32 2.1" rotary display with control dial. A standalone, knob-driven
 rewrite of [FridgePinventory](https://github.com/cialowicz/FridgePinventory)
 — no Raspberry Pi, no voice control, no microphone. Just twist and click.
 
+![FreezerSpinventory Demo Gif](docs/FreezerSpinventory.gif)
+
 ## Hardware
 
 [ELECROW CrowPanel 2.1" HMI ESP32 Rotary Display](https://www.elecrow.com/crowpanel-2-1inch-hmi-esp32-rotary-display-480-480-ips-round-touch-knob-screen.html)
