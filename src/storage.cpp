@@ -22,6 +22,8 @@ LoadResult loadLegacy(Preferences& prefs, inv::InventoryModel& model) {
     return LoadResult::kInvalid;
   }
   model.restoreQuantities(quantities);
+  // Legacy data still needs to be rewritten in the current format.
+  model.markDirty();
   return LoadResult::kLoadedLegacy;
 }
 }  // namespace
@@ -71,11 +73,18 @@ SaveResult save(inv::InventoryModel& model) {
 
   uint8_t verification[sizeof(data)] = {0};
   const size_t got = prefs.getBytes(kKey, verification, sizeof(verification));
-  prefs.end();
   if (got != sizeof(data) ||
       memcmp(data, verification, sizeof(data)) != 0) {
+    prefs.end();
     return SaveResult::kVerifyFailed;
   }
+
+  // The verified v2 record supersedes any legacy data; dropping the old key
+  // prevents a lost v2 key from silently resurrecting stale quantities.
+  if (prefs.isKey(kLegacyKey)) {
+    prefs.remove(kLegacyKey);
+  }
+  prefs.end();
 
   model.clearDirty();
   return SaveResult::kSaved;

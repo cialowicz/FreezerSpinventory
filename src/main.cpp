@@ -155,14 +155,21 @@ void loop() {
   }
 
   if (controller.saveDue(now)) {
-    const storage::SaveResult result = storage::save(model);
-    const bool saved = result == storage::SaveResult::kSaved;
-    controller.recordSaveResult(saved, now);
-    if (saved) {
+    if (!model.dirty()) {
+      // Nothing left to persist; resolve the pending save without an
+      // NVS write to spare flash wear.
+      controller.recordSaveResult(true, now);
       ui::showSavedToast();
     } else {
-      ui::showSaveFailedToast();
-      Serial.println("Inventory save failed; retrying");
+      const storage::SaveResult result = storage::save(model);
+      const bool saved = result == storage::SaveResult::kSaved;
+      controller.recordSaveResult(saved, now);
+      if (saved) {
+        ui::showSavedToast();
+      } else {
+        ui::showSaveFailedToast();
+        Serial.println("Inventory save failed; retrying");
+      }
     }
   }
 
