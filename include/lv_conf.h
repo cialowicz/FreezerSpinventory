@@ -19,9 +19,11 @@
 #define LV_DISP_DEF_REFR_PERIOD 30
 #define LV_INDEV_DEF_READ_PERIOD 30
 
-/* Fonts: 14 default/hints, 28 item names, 48 quantity. */
+/* Fonts: 14 default, 20 hints, 24 overview rows, 28 item names,
+ * 48 quantity. */
 #define LV_FONT_MONTSERRAT_14 1
 #define LV_FONT_MONTSERRAT_20 1
+#define LV_FONT_MONTSERRAT_24 1
 #define LV_FONT_MONTSERRAT_28 1
 #define LV_FONT_MONTSERRAT_48 1
 #define LV_FONT_DEFAULT &lv_font_montserrat_14

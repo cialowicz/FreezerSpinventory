@@ -21,10 +21,12 @@ inline bool IRAM_ATTR fastGpioRead(uint8_t pin) {
 
 RotaryEncoder* RotaryEncoder::instance_ = nullptr;
 
-void RotaryEncoder::begin(uint8_t pinA, uint8_t pinB, bool reversed) {
+void RotaryEncoder::begin(uint8_t pinA, uint8_t pinB, bool reversed,
+                          int32_t transitionsPerDetent) {
   pinA_ = pinA;
   pinB_ = pinB;
   reversed_ = reversed;
+  transitionsPerDetent_ = transitionsPerDetent;
   instance_ = this;
   pinMode(pinA_, INPUT_PULLUP);
   pinMode(pinB_, INPUT_PULLUP);
@@ -63,6 +65,6 @@ int RotaryEncoder::consumeSteps() {
   int32_t delta = count_;
   count_ = 0;
   interrupts();
-  const int steps = input::consumeDetents(accum_, delta);
+  const int steps = input::consumeDetents(accum_, delta, transitionsPerDetent_);
   return reversed_ ? -steps : steps;
 }

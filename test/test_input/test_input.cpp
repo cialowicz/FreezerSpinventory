@@ -91,11 +91,22 @@ static void test_quadrature_sequences_and_invalid_transition() {
 
 static void test_detent_accumulator_carries_partial_steps() {
   int32_t remainder = 0;
-  TEST_ASSERT_EQUAL_INT(0, input::consumeDetents(remainder, 3));
+  TEST_ASSERT_EQUAL_INT(0, input::consumeDetents(remainder, 3, 4));
   TEST_ASSERT_EQUAL_INT(3, remainder);
-  TEST_ASSERT_EQUAL_INT(1, input::consumeDetents(remainder, 2));
+  TEST_ASSERT_EQUAL_INT(1, input::consumeDetents(remainder, 2, 4));
   TEST_ASSERT_EQUAL_INT(1, remainder);
-  TEST_ASSERT_EQUAL_INT(-1, input::consumeDetents(remainder, -5));
+  TEST_ASSERT_EQUAL_INT(-1, input::consumeDetents(remainder, -5, 4));
+  TEST_ASSERT_EQUAL_INT(0, remainder);
+}
+
+static void test_detent_divisor_matches_encoder_resolution() {
+  // Encoders that emit two transitions per physical click use divisor 2.
+  int32_t remainder = 0;
+  TEST_ASSERT_EQUAL_INT(1, input::consumeDetents(remainder, 2, 2));
+  TEST_ASSERT_EQUAL_INT(0, remainder);
+  TEST_ASSERT_EQUAL_INT(0, input::consumeDetents(remainder, -1, 2));
+  TEST_ASSERT_EQUAL_INT(-1, remainder);
+  TEST_ASSERT_EQUAL_INT(-1, input::consumeDetents(remainder, -1, 2));
   TEST_ASSERT_EQUAL_INT(0, remainder);
 }
 
@@ -152,6 +163,7 @@ int main(int, char**) {
   RUN_TEST(test_button_held_at_boot_is_not_a_press);
   RUN_TEST(test_quadrature_sequences_and_invalid_transition);
   RUN_TEST(test_detent_accumulator_carries_partial_steps);
+  RUN_TEST(test_detent_divisor_matches_encoder_resolution);
   RUN_TEST(test_swipes_classified_on_release);
   RUN_TEST(test_diagonal_swipe_uses_dominant_axis);
   RUN_TEST(test_tap_and_subthreshold_motion);

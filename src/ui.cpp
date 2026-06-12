@@ -76,11 +76,12 @@ void setCarouselHidden(bool hidden) {
   }
 }
 
-// At-a-glance list: one name/count row per item, sized to stay inside the
-// round panel's safe area at the top and bottom rows.
+// At-a-glance list: one name/count row per item. The panel is kept narrow
+// so the count column sits close to the names instead of hugging the round
+// bezel, and stays inside the safe area at the top and bottom rows.
 void buildOverview(lv_obj_t* scr) {
-  constexpr lv_coord_t kRowHeight = 38;
-  constexpr lv_coord_t kPanelWidth = 350;
+  constexpr lv_coord_t kRowHeight = 34;
+  constexpr lv_coord_t kPanelWidth = 310;
 
   overviewPanel = lv_obj_create(scr);
   lv_obj_set_size(overviewPanel, kPanelWidth,
@@ -94,14 +95,14 @@ void buildOverview(lv_obj_t* scr) {
   for (size_t i = 0; i < inv::kItemCount; i++) {
     const lv_coord_t rowY = (lv_coord_t)(i * kRowHeight);
     lv_obj_t* name = lv_label_create(overviewPanel);
-    lv_obj_set_style_text_font(name, &lv_font_montserrat_20, 0);
+    lv_obj_set_style_text_font(name, &lv_font_montserrat_24, 0);
     lv_obj_set_style_text_color(name, kText, 0);
     lv_label_set_text(name, inv::kCatalog[i].name);
     lv_obj_align(name, LV_ALIGN_TOP_LEFT, 0, rowY);
 
     overviewQtyLabels[i] = lv_label_create(overviewPanel);
     lv_obj_set_style_text_font(overviewQtyLabels[i],
-                               &lv_font_montserrat_20, 0);
+                               &lv_font_montserrat_24, 0);
     lv_obj_align(overviewQtyLabels[i], LV_ALIGN_TOP_RIGHT, 0, rowY);
   }
   lv_obj_add_flag(overviewPanel, LV_OBJ_FLAG_HIDDEN);

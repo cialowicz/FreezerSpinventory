@@ -39,6 +39,9 @@
 #define PIN_ENCODER_B 4
 // Flip if clockwise rotation moves the "wrong" way on your unit.
 #define ENCODER_REVERSED true
+// Quadrature transitions per physical click. This panel's knob emits 2;
+// set to 4 if a unit registers two clicks per step.
+#define ENCODER_TRANSITIONS_PER_DETENT 2
 
 // Shared I2C bus (PCF8574 expander + CST816 touch)
 #define PIN_I2C_SDA 38
@@ -63,10 +66,10 @@
 #define SCREEN_HEIGHT 480
 
 // Behavior tuning
-#define COMMIT_IDLE_MS 1000        // edit-mode pause before auto-commit+save
-#define SAVE_DEBOUNCE_MS 1000      // settle time before writing NVS (swipes)
+#define COMMIT_IDLE_MS 2000        // edit-mode pause before auto-commit+save
+#define SAVE_DEBOUNCE_MS 2000      // settle time before writing NVS (swipes)
 #define SAVE_RETRY_MS 10000        // retry delay after an NVS failure
-#define OVERVIEW_DELAY_MS 5000     // idle time before the at-a-glance view
+#define OVERVIEW_DELAY_MS 7000     // idle time before the at-a-glance view
 #define BACKLIGHT_DIM_MS 60000     // idle time before dimming
 #define BACKLIGHT_FULL 255
 #define BACKLIGHT_DIM 40

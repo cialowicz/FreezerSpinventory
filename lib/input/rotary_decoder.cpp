@@ -30,10 +30,11 @@ int8_t INPUT_ISR_ATTR quadratureDelta(uint8_t previousState,
   return kQuadratureLut[index];
 }
 
-int consumeDetents(int32_t& remainder, int32_t transitions) {
+int consumeDetents(int32_t& remainder, int32_t transitions,
+                   int32_t transitionsPerDetent) {
   remainder += transitions;
-  const int steps = remainder / 4;
-  remainder -= steps * 4;
+  const int steps = remainder / transitionsPerDetent;
+  remainder -= steps * transitionsPerDetent;
   return steps;
 }
 

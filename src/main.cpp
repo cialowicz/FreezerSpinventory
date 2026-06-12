@@ -189,7 +189,8 @@ void setup() {
       migrationSavePending = true;
     }
   }
-  knob.begin(PIN_ENCODER_A, PIN_ENCODER_B, ENCODER_REVERSED);
+  knob.begin(PIN_ENCODER_A, PIN_ENCODER_B, ENCODER_REVERSED,
+             ENCODER_TRANSITIONS_PER_DETENT);
   if (!touch.begin()) {
     // Non-fatal: the chip wakes on the first touch event and answers polls
     // while a finger is down, so gestures still work without this.
