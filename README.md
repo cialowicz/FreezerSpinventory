@@ -24,6 +24,8 @@ No wiring required — everything is on the board. Power/flash over USB-C.
 - Walk away mid-edit and the pending change is discarded after 15s.
 - Counts persist to flash (NVS), debounced to limit wear. The UI confirms only
   after a verified write and retries transient failures.
+- If stored counts can't be restored at boot, the display says
+  "Inventory not restored" instead of silently showing zeros.
 - Backlight dims after a minute idle; the first input wakes it without changing
   inventory state.
 - An item at 0 shows its count in red.

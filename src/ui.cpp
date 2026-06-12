@@ -28,6 +28,8 @@ lv_obj_t* qtyLabel = nullptr;
 lv_obj_t* hintLabel = nullptr;
 lv_obj_t* dots[inv::kItemCount] = {nullptr};
 
+constexpr uint32_t kToastMs = 1200;
+
 bool toastActive = false;
 lv_timer_t* toastTimer = nullptr;
 
@@ -40,10 +42,30 @@ void setHintForMode() {
   lv_obj_set_style_text_color(hintLabel, kHintGray, 0);
 }
 
+void killToastTimer() {
+  if (toastTimer != nullptr) {
+    lv_timer_del(toastTimer);
+    toastTimer = nullptr;
+  }
+}
+
 void toastTimerCb(lv_timer_t*) {
-  toastActive = false;
   toastTimer = nullptr;
+  toastActive = false;
   setHintForMode();
+}
+
+// Shows a status message in the hint area. autoDismissMs == 0 keeps the
+// message until user activity or a subsequent toast replaces it.
+void showToast(const char* text, lv_color_t color, uint32_t autoDismissMs) {
+  toastActive = true;
+  lv_label_set_text(hintLabel, text);
+  lv_obj_set_style_text_color(hintLabel, color, 0);
+  killToastTimer();
+  if (autoDismissMs > 0) {
+    toastTimer = lv_timer_create(toastTimerCb, autoDismissMs, nullptr);
+    lv_timer_set_repeat_count(toastTimer, 1);
+  }
 }
 
 }  // namespace
@@ -136,46 +158,30 @@ void refresh() {
   }
 }
 
-void showSavedToast() {
-  toastActive = true;
-  lv_label_set_text(hintLabel, "Saved");
-  lv_obj_set_style_text_color(hintLabel, kGreen, 0);
-  if (toastTimer != nullptr) {
-    lv_timer_del(toastTimer);
-  }
-  toastTimer = lv_timer_create(toastTimerCb, 1200, nullptr);
-  lv_timer_set_repeat_count(toastTimer, 1);
-}
+void showSavingToast() { showToast("Saving...", kHintGray, 0); }
 
-void showSavingToast() {
-  toastActive = true;
-  lv_label_set_text(hintLabel, "Saving...");
-  lv_obj_set_style_text_color(hintLabel, kHintGray, 0);
-  if (toastTimer != nullptr) {
-    lv_timer_del(toastTimer);
-    toastTimer = nullptr;
-  }
-}
+void showSavedToast() { showToast("Saved", kGreen, kToastMs); }
 
-void showSaveFailedToast() {
-  toastActive = true;
-  lv_label_set_text(hintLabel, "Save failed - retrying");
-  lv_obj_set_style_text_color(hintLabel, kRed, 0);
-  if (toastTimer != nullptr) {
-    lv_timer_del(toastTimer);
-    toastTimer = nullptr;
-  }
-}
+void showSaveFailedToast() { showToast("Save failed - retrying", kRed, 0); }
 
 void showEditCancelledToast() {
-  toastActive = true;
-  lv_label_set_text(hintLabel, "Changes discarded");
-  lv_obj_set_style_text_color(hintLabel, kHintGray, 0);
-  if (toastTimer != nullptr) {
-    lv_timer_del(toastTimer);
+  showToast("Changes discarded", kHintGray, kToastMs);
+}
+
+void showLoadFailedNotice() {
+  showToast("Inventory not restored", kRed, 0);
+}
+
+void noteUserActivity() {
+  if (!toastActive) {
+    return;
   }
-  toastTimer = lv_timer_create(toastTimerCb, 1200, nullptr);
-  lv_timer_set_repeat_count(toastTimer, 1);
+  // Input always belongs to the interaction, not the toast: yield the hint
+  // area back to the mode hint. Persistent states (saving, save failed) are
+  // re-shown by their owners when they next resolve or retry.
+  killToastTimer();
+  toastActive = false;
+  setHintForMode();
 }
 
 }  // namespace ui

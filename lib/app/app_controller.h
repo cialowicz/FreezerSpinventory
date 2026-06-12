@@ -7,17 +7,9 @@
 
 namespace app {
 
+// Aggregate; construct with designated initializers so the four
+// indistinguishable uint32_t durations cannot be silently transposed.
 struct Config {
-  Config(uint32_t editTimeout, uint32_t saveDebounce, uint32_t saveRetry,
-         uint32_t backlightDim, uint8_t backlightFull,
-         uint8_t backlightDimmed)
-      : editTimeoutMs(editTimeout),
-        saveDebounceMs(saveDebounce),
-        saveRetryMs(saveRetry),
-        backlightDimMs(backlightDim),
-        backlightFullLevel(backlightFull),
-        backlightDimLevel(backlightDimmed) {}
-
   uint32_t editTimeoutMs;
   uint32_t saveDebounceMs;
   uint32_t saveRetryMs;

@@ -7,8 +7,14 @@
 
 namespace {
 
-const app::Config kConfig(
-    100, 20, 50, 200, 255, 40);
+const app::Config kConfig{
+    .editTimeoutMs = 100,
+    .saveDebounceMs = 20,
+    .saveRetryMs = 50,
+    .backlightDimMs = 200,
+    .backlightFullLevel = 255,
+    .backlightDimLevel = 40,
+};
 
 }  // namespace
 

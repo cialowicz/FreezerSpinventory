@@ -16,4 +16,12 @@ void showSavedToast();
 void showSaveFailedToast();
 void showEditCancelledToast();
 
+// Persistent boot-time warning that stored inventory could not be restored
+// and the displayed zero counts are not to be trusted.
+void showLoadFailedNotice();
+
+// Call on any user input. Dismisses an active toast/notice so the hint area
+// reflects the interaction the user is actually having.
+void noteUserActivity();
+
 }  // namespace ui

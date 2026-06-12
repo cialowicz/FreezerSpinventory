@@ -63,3 +63,8 @@
 #define BACKLIGHT_DIM_MS 60000     // idle time before dimming
 #define BACKLIGHT_FULL 255
 #define BACKLIGHT_DIM 40
+
+// The wake-only-input and edit-cancel interactions assume an abandoned edit
+// times out before the backlight ever dims mid-edit.
+static_assert(EDIT_TIMEOUT_MS < BACKLIGHT_DIM_MS,
+              "edit timeout must elapse before the idle backlight dim");
