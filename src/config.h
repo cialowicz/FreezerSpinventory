@@ -38,7 +38,7 @@
 #define PIN_ENCODER_A 42
 #define PIN_ENCODER_B 4
 // Flip if clockwise rotation moves the "wrong" way on your unit.
-#define ENCODER_REVERSED false
+#define ENCODER_REVERSED true
 
 // Shared I2C bus (PCF8574 expander + CST816 touch)
 #define PIN_I2C_SDA 38
