@@ -36,7 +36,7 @@ static void rewritePersistenceChecksum(uint8_t* data, size_t size) {
 
 static void test_initial_state() {
   InventoryModel m;
-  TEST_ASSERT_EQUAL_size_t(8, m.itemCount());
+  TEST_ASSERT_EQUAL_size_t(9, m.itemCount());
   TEST_ASSERT_EQUAL_size_t(0, m.selectedIndex());
   TEST_ASSERT_FALSE(m.inEditMode());
   TEST_ASSERT_FALSE(m.dirty());
@@ -161,7 +161,7 @@ static void test_rotate_zero_steps_is_noop() {
 
 static void test_restore_quantities_does_not_mark_dirty() {
   InventoryModel m;
-  uint8_t quantities[kItemCount] = {1, 2, 3, 4, 5, 6, 7, 200};
+  uint8_t quantities[kItemCount] = {1, 2, 3, 4, 5, 6, 7, 8, 200};
   m.restoreQuantities(quantities);
   for (size_t i = 0; i < kItemCount - 1; i++) {
     TEST_ASSERT_EQUAL_UINT8(i + 1, m.item(i).quantity);

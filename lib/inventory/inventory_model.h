@@ -28,6 +28,7 @@ constexpr CatalogItem kCatalog[] = {
     {120, "Chicken Wings"},
     {130, "Chicken Nuggets"},
     {200, "Steaks"},
+    {210, "Ground Beef"},
     {300, "Salmon"},
     {310, "White Fish"},
     {400, "Ice Cream"},

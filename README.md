@@ -41,7 +41,7 @@ No wiring required — everything is on the board. Power/flash over USB-C.
 Items and their stable persistence IDs are defined once in
 `lib/inventory/inventory_model.h`:
 Chicken Breasts, Chicken Tenderloins, Chicken Wings, Chicken Nuggets,
-Steaks, Salmon, White Fish, Ice Cream.
+Steaks, Ground Beef, Salmon, White Fish, Ice Cream.
 
 ## Building
 
