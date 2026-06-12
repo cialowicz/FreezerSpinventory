@@ -7,6 +7,8 @@ rewrite of [FridgePinventory](https://github.com/cialowicz/FridgePinventory)
 
 ![FreezerSpinventory Demo Gif](docs/FreezerSpinventory.gif)
 
+![FreezerSpinventory Image](docs/FreezerSpinventory.jpg)
+
 ## Hardware
 
 [ELECROW CrowPanel 2.1" HMI ESP32 Rotary Display](https://www.elecrow.com/crowpanel-2-1inch-hmi-esp32-rotary-display-480-480-ips-round-touch-knob-screen.html)
