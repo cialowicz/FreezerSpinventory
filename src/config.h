@@ -63,8 +63,8 @@
 #define SCREEN_HEIGHT 480
 
 // Behavior tuning
-#define EDIT_TIMEOUT_MS 15000      // discard pending edit and leave edit mode
-#define SAVE_DEBOUNCE_MS 2000      // settle time before writing NVS
+#define COMMIT_IDLE_MS 1000        // edit-mode pause before auto-commit+save
+#define SAVE_DEBOUNCE_MS 1000      // settle time before writing NVS (swipes)
 #define SAVE_RETRY_MS 10000        // retry delay after an NVS failure
 #define OVERVIEW_DELAY_MS 5000     // idle time before the at-a-glance view
 #define BACKLIGHT_DIM_MS 60000     // idle time before dimming

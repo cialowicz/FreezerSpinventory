@@ -38,7 +38,7 @@ lv_timer_t* toastTimer = nullptr;
 
 void setHintForMode() {
   if (model->inEditMode()) {
-    lv_label_set_text(hintLabel, "turn to adjust  -  press to save");
+    lv_label_set_text(hintLabel, "turn to adjust  -  pause to save");
   } else {
     lv_label_set_text(hintLabel, "press knob to edit");
   }
@@ -217,10 +217,6 @@ void showSavingToast() { showToast("Saving...", kHintGray, 0); }
 void showSavedToast() { showToast("Saved", kGreen, kToastMs); }
 
 void showSaveFailedToast() { showToast("Save failed - retrying", kRed, 0); }
-
-void showEditCancelledToast() {
-  showToast("Changes discarded", kHintGray, kToastMs);
-}
 
 void showLoadFailedNotice() {
   showToast("Inventory not restored", kRed, 0);

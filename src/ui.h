@@ -14,7 +14,6 @@ void refresh();
 void showSavingToast();
 void showSavedToast();
 void showSaveFailedToast();
-void showEditCancelledToast();
 
 // Persistent boot-time warning that stored inventory could not be restored
 // and the displayed zero counts are not to be trusted.

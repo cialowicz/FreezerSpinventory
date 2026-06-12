@@ -20,10 +20,10 @@ No wiring required — everything is on the board. Power/flash over USB-C.
 
 - **Turn** the knob to spin through the item list (wraps around).
 - **Press** to edit the selected item; the accent ring turns amber.
-- **Turn** to raise/lower the count (0–50), **press** to save.
+- **Turn** to raise/lower the count (0–50), then just pause: a second after
+  the last turn the value commits and saves itself (pressing saves at once).
 - **Swipe** instead, if you prefer: left/right to change items, up/down to
   raise/lower the count (saved automatically, no edit mode needed).
-- Walk away mid-edit and the pending change is discarded after 15s.
 - After 5s idle the display switches to an at-a-glance list of every item
   and its count; any touch or knob input returns to the carousel.
 - Counts persist to flash (NVS), debounced to limit wear. The UI confirms only

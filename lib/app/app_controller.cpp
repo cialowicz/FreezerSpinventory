@@ -35,7 +35,8 @@ InputResult Controller::press(uint32_t now) {
   markActivity(now);
 
   if (quantityChanged) {
-    scheduleSave(now);
+    // An explicit press is a confirmation: save without further debounce.
+    scheduleSaveAfter(now, 0);
     return InputResult::kCommitScheduled;
   }
   return InputResult::kModelChanged;
@@ -88,11 +89,17 @@ TickResult Controller::tick(uint32_t now) {
     dimmed_ = true;
   }
   if (model_.inEditMode()) {
-    if (now - lastActivityMs_ >= config_.editTimeoutMs) {
-      model_.cancelEdit();
-      return TickResult::kEditCancelled;
+    if (now - lastActivityMs_ < config_.commitIdleMs) {
+      return TickResult::kNoChange;
     }
-    return TickResult::kNoChange;
+    // The pause is the confirmation: commit the pending value and save at
+    // once — the idle wait already served as the debounce.
+    const uint8_t quantityBefore = model_.selectedItem().quantity;
+    model_.click();
+    if (model_.selectedItem().quantity != quantityBefore) {
+      scheduleSaveAfter(now, 0);
+    }
+    return TickResult::kAutoCommitted;
   }
   if (!overview_ && now - lastActivityMs_ >= config_.overviewDelayMs) {
     overview_ = true;
@@ -102,9 +109,13 @@ TickResult Controller::tick(uint32_t now) {
 }
 
 void Controller::scheduleSave(uint32_t now) {
+  scheduleSaveAfter(now, config_.saveDebounceMs);
+}
+
+void Controller::scheduleSaveAfter(uint32_t now, uint32_t delay) {
   savePending_ = true;
   saveTimerStartedMs_ = now;
-  saveDelayMs_ = config_.saveDebounceMs;
+  saveDelayMs_ = delay;
 }
 
 bool Controller::saveDue(uint32_t now) const {

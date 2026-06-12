@@ -10,7 +10,7 @@ namespace app {
 // Aggregate; construct with designated initializers so the four
 // indistinguishable uint32_t durations cannot be silently transposed.
 struct Config {
-  uint32_t editTimeoutMs;
+  uint32_t commitIdleMs;  // edit-mode idle time before auto-commit + save
   uint32_t saveDebounceMs;
   uint32_t saveRetryMs;
   uint32_t overviewDelayMs;
@@ -28,7 +28,7 @@ enum class InputResult {
 
 enum class TickResult {
   kNoChange,
-  kEditCancelled,
+  kAutoCommitted,  // edit mode closed itself; a changed value is saving
   kOverviewDue,
 };
 
@@ -61,6 +61,7 @@ class Controller {
  private:
   bool wakeIfIdle(uint32_t now);
   void markActivity(uint32_t now);
+  void scheduleSaveAfter(uint32_t now, uint32_t delay);
 
   inv::InventoryModel& model_;
   Config config_;

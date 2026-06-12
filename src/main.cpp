@@ -24,7 +24,7 @@ IoExpander expander;
 RotaryEncoder knob;
 app::Controller controller(model,
                            app::Config{
-                               .editTimeoutMs = EDIT_TIMEOUT_MS,
+                               .commitIdleMs = COMMIT_IDLE_MS,
                                .saveDebounceMs = SAVE_DEBOUNCE_MS,
                                .saveRetryMs = SAVE_RETRY_MS,
                                .overviewDelayMs = OVERVIEW_DELAY_MS,
@@ -235,9 +235,8 @@ void loop() {
   pollTouch(now);
 
   const app::TickResult tickResult = controller.tick(now);
-  if (tickResult == app::TickResult::kEditCancelled) {
-    ui::refresh();
-    ui::showEditCancelledToast();
+  if (tickResult == app::TickResult::kAutoCommitted) {
+    ui::refresh();  // back to browse styling; any save announces itself
   } else if (tickResult == app::TickResult::kOverviewDue) {
     ui::showOverview();
   }

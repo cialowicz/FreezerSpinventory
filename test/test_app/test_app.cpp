@@ -8,7 +8,7 @@
 namespace {
 
 const app::Config kConfig{
-    .editTimeoutMs = 100,
+    .commitIdleMs = 100,
     .saveDebounceMs = 20,
     .saveRetryMs = 50,
     .overviewDelayMs = 150,
@@ -22,7 +22,7 @@ const app::Config kConfig{
 void setUp() {}
 void tearDown() {}
 
-static void test_commit_is_debounced_and_failed_save_retries() {
+static void test_press_commit_saves_immediately_and_failed_save_retries() {
   inv::InventoryModel model;
   app::Controller controller(model, kConfig);
   controller.begin(0);
@@ -36,16 +36,16 @@ static void test_commit_is_debounced_and_failed_save_retries() {
       static_cast<int>(controller.press(3)));
   TEST_ASSERT_EQUAL_UINT8(5, model.item(0).quantity);
 
-  TEST_ASSERT_FALSE(controller.saveDue(22));
-  TEST_ASSERT_TRUE(controller.saveDue(23));
-  controller.recordSaveResult(false, 23);
-  TEST_ASSERT_FALSE(controller.saveDue(72));
-  TEST_ASSERT_TRUE(controller.saveDue(73));
-  controller.recordSaveResult(true, 73);
+  // An explicit press-commit saves without further debounce.
+  TEST_ASSERT_TRUE(controller.saveDue(3));
+  controller.recordSaveResult(false, 3);
+  TEST_ASSERT_FALSE(controller.saveDue(52));
+  TEST_ASSERT_TRUE(controller.saveDue(53));
+  controller.recordSaveResult(true, 53);
   TEST_ASSERT_FALSE(controller.saveDue(UINT32_MAX));
 }
 
-static void test_timeout_discards_pending_edit() {
+static void test_idle_edit_auto_commits_and_saves() {
   inv::InventoryModel model;
   app::Controller controller(model, kConfig);
   controller.begin(0);
@@ -56,11 +56,26 @@ static void test_timeout_discards_pending_edit() {
       static_cast<int>(app::TickResult::kNoChange),
       static_cast<int>(controller.tick(101)));
   TEST_ASSERT_EQUAL_INT(
-      static_cast<int>(app::TickResult::kEditCancelled),
+      static_cast<int>(app::TickResult::kAutoCommitted),
       static_cast<int>(controller.tick(102)));
   TEST_ASSERT_FALSE(model.inEditMode());
-  TEST_ASSERT_EQUAL_UINT8(0, model.item(0).quantity);
+  TEST_ASSERT_EQUAL_UINT8(7, model.item(0).quantity);
+  // The idle wait was the debounce: the save is due at once.
+  TEST_ASSERT_TRUE(controller.saveDue(102));
+}
+
+static void test_idle_edit_without_change_just_closes() {
+  inv::InventoryModel model;
+  app::Controller controller(model, kConfig);
+  controller.begin(0);
+
+  controller.press(1);  // enter edit, never turn
+  TEST_ASSERT_EQUAL_INT(
+      static_cast<int>(app::TickResult::kAutoCommitted),
+      static_cast<int>(controller.tick(101)));
+  TEST_ASSERT_FALSE(model.inEditMode());
   TEST_ASSERT_FALSE(model.dirty());
+  TEST_ASSERT_FALSE(controller.saveDue(UINT32_MAX));
 }
 
 static void test_first_input_after_dimming_only_wakes() {
@@ -102,39 +117,31 @@ static void test_timers_handle_millis_rollover() {
   TEST_ASSERT_TRUE(controller.saveDue(14));
 }
 
-static void test_recommit_during_debounce_restarts_timer() {
+static void test_reswipe_during_debounce_restarts_timer() {
   inv::InventoryModel model;
   app::Controller controller(model, kConfig);
   controller.begin(0);
 
-  controller.press(1);
-  controller.rotate(5, 2);
-  controller.press(3);  // first commit; save would be due at 23
-  controller.press(10);
-  controller.rotate(1, 11);
-  controller.press(12);  // second commit restarts the debounce window
+  controller.swipeVertical(1, 3);   // save due at 23
+  controller.swipeVertical(1, 12);  // restarts the debounce window
   TEST_ASSERT_FALSE(controller.saveDue(31));
   TEST_ASSERT_TRUE(controller.saveDue(32));
 }
 
-static void test_commit_during_retry_window_uses_debounce_delay() {
+static void test_swipe_during_retry_window_uses_debounce_delay() {
   inv::InventoryModel model;
   app::Controller controller(model, kConfig);
   controller.begin(0);
 
-  controller.press(1);
-  controller.rotate(5, 2);
-  controller.press(3);
+  controller.swipeVertical(1, 3);
   TEST_ASSERT_TRUE(controller.saveDue(23));
   controller.recordSaveResult(false, 23);  // retry would be due at 73
 
-  // A new commit supersedes the pending retry: the save is rescheduled on
+  // A new change supersedes the pending retry: the save is rescheduled on
   // the (shorter) debounce delay, not the retry delay.
-  controller.press(30);
-  controller.rotate(1, 31);
-  controller.press(32);
-  TEST_ASSERT_FALSE(controller.saveDue(51));
-  TEST_ASSERT_TRUE(controller.saveDue(52));
+  controller.swipeVertical(1, 30);
+  TEST_ASSERT_FALSE(controller.saveDue(49));
+  TEST_ASSERT_TRUE(controller.saveDue(50));
 }
 
 static void test_overview_after_idle_and_first_input_only_wakes() {
@@ -163,14 +170,14 @@ static void test_overview_after_idle_and_first_input_only_wakes() {
   TEST_ASSERT_EQUAL_size_t(0, model.selectedIndex());
 }
 
-static void test_overview_waits_for_edit_to_cancel() {
+static void test_overview_waits_for_edit_to_commit() {
   inv::InventoryModel model;
   app::Controller controller(model, kConfig);
   controller.begin(0);
 
   controller.press(1);  // enter edit
   TEST_ASSERT_EQUAL_INT(
-      static_cast<int>(app::TickResult::kEditCancelled),
+      static_cast<int>(app::TickResult::kAutoCommitted),
       static_cast<int>(controller.tick(120)));
   TEST_ASSERT_FALSE(controller.overviewActive());
   TEST_ASSERT_EQUAL_INT(
@@ -255,14 +262,15 @@ static void test_tap_wakes_and_postpones_idle() {
 
 int main(int, char**) {
   UNITY_BEGIN();
-  RUN_TEST(test_commit_is_debounced_and_failed_save_retries);
-  RUN_TEST(test_timeout_discards_pending_edit);
+  RUN_TEST(test_press_commit_saves_immediately_and_failed_save_retries);
+  RUN_TEST(test_idle_edit_auto_commits_and_saves);
+  RUN_TEST(test_idle_edit_without_change_just_closes);
   RUN_TEST(test_first_input_after_dimming_only_wakes);
   RUN_TEST(test_timers_handle_millis_rollover);
-  RUN_TEST(test_recommit_during_debounce_restarts_timer);
-  RUN_TEST(test_commit_during_retry_window_uses_debounce_delay);
+  RUN_TEST(test_reswipe_during_debounce_restarts_timer);
+  RUN_TEST(test_swipe_during_retry_window_uses_debounce_delay);
   RUN_TEST(test_overview_after_idle_and_first_input_only_wakes);
-  RUN_TEST(test_overview_waits_for_edit_to_cancel);
+  RUN_TEST(test_overview_waits_for_edit_to_commit);
   RUN_TEST(test_vertical_swipe_in_browse_commits_directly);
   RUN_TEST(test_vertical_swipe_in_edit_adjusts_pending);
   RUN_TEST(test_horizontal_swipe_browses_unless_editing);
