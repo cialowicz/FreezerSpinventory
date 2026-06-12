@@ -11,6 +11,7 @@ const app::Config kConfig{
     .editTimeoutMs = 100,
     .saveDebounceMs = 20,
     .saveRetryMs = 50,
+    .overviewDelayMs = 150,
     .backlightDimMs = 200,
     .backlightFullLevel = 255,
     .backlightDimLevel = 40,
@@ -136,6 +137,122 @@ static void test_commit_during_retry_window_uses_debounce_delay() {
   TEST_ASSERT_TRUE(controller.saveDue(52));
 }
 
+static void test_overview_after_idle_and_first_input_only_wakes() {
+  inv::InventoryModel model;
+  app::Controller controller(model, kConfig);
+  controller.begin(0);
+
+  TEST_ASSERT_EQUAL_INT(
+      static_cast<int>(app::TickResult::kNoChange),
+      static_cast<int>(controller.tick(149)));
+  TEST_ASSERT_FALSE(controller.overviewActive());
+  TEST_ASSERT_EQUAL_INT(
+      static_cast<int>(app::TickResult::kOverviewDue),
+      static_cast<int>(controller.tick(150)));
+  TEST_ASSERT_TRUE(controller.overviewActive());
+  // Only signalled once.
+  TEST_ASSERT_EQUAL_INT(
+      static_cast<int>(app::TickResult::kNoChange),
+      static_cast<int>(controller.tick(151)));
+
+  // First input leaves the overview without touching the model.
+  TEST_ASSERT_EQUAL_INT(
+      static_cast<int>(app::InputResult::kWakeOnly),
+      static_cast<int>(controller.rotate(1, 160)));
+  TEST_ASSERT_FALSE(controller.overviewActive());
+  TEST_ASSERT_EQUAL_size_t(0, model.selectedIndex());
+}
+
+static void test_overview_waits_for_edit_to_cancel() {
+  inv::InventoryModel model;
+  app::Controller controller(model, kConfig);
+  controller.begin(0);
+
+  controller.press(1);  // enter edit
+  TEST_ASSERT_EQUAL_INT(
+      static_cast<int>(app::TickResult::kEditCancelled),
+      static_cast<int>(controller.tick(120)));
+  TEST_ASSERT_FALSE(controller.overviewActive());
+  TEST_ASSERT_EQUAL_INT(
+      static_cast<int>(app::TickResult::kOverviewDue),
+      static_cast<int>(controller.tick(151)));
+}
+
+static void test_vertical_swipe_in_browse_commits_directly() {
+  inv::InventoryModel model;
+  app::Controller controller(model, kConfig);
+  controller.begin(0);
+
+  // Swiping down at zero is clamped: nothing changes, no save.
+  TEST_ASSERT_EQUAL_INT(
+      static_cast<int>(app::InputResult::kIgnored),
+      static_cast<int>(controller.swipeVertical(-1, 1)));
+  TEST_ASSERT_FALSE(controller.saveDue(UINT32_MAX));
+
+  TEST_ASSERT_EQUAL_INT(
+      static_cast<int>(app::InputResult::kCommitScheduled),
+      static_cast<int>(controller.swipeVertical(1, 2)));
+  TEST_ASSERT_EQUAL_UINT8(1, model.item(0).quantity);
+  TEST_ASSERT_FALSE(model.inEditMode());
+  TEST_ASSERT_FALSE(controller.saveDue(21));
+  TEST_ASSERT_TRUE(controller.saveDue(22));
+}
+
+static void test_vertical_swipe_in_edit_adjusts_pending() {
+  inv::InventoryModel model;
+  app::Controller controller(model, kConfig);
+  controller.begin(0);
+
+  controller.press(1);
+  TEST_ASSERT_EQUAL_INT(
+      static_cast<int>(app::InputResult::kModelChanged),
+      static_cast<int>(controller.swipeVertical(1, 2)));
+  TEST_ASSERT_TRUE(model.inEditMode());
+  TEST_ASSERT_EQUAL_UINT8(1, model.pendingQuantity());
+  TEST_ASSERT_EQUAL_UINT8(0, model.item(0).quantity);  // not committed
+}
+
+static void test_horizontal_swipe_browses_unless_editing() {
+  inv::InventoryModel model;
+  app::Controller controller(model, kConfig);
+  controller.begin(0);
+
+  TEST_ASSERT_EQUAL_INT(
+      static_cast<int>(app::InputResult::kModelChanged),
+      static_cast<int>(controller.swipeHorizontal(1, 1)));
+  TEST_ASSERT_EQUAL_size_t(1, model.selectedIndex());
+
+  controller.press(2);  // selection is locked while editing
+  TEST_ASSERT_EQUAL_INT(
+      static_cast<int>(app::InputResult::kIgnored),
+      static_cast<int>(controller.swipeHorizontal(1, 3)));
+  TEST_ASSERT_EQUAL_size_t(1, model.selectedIndex());
+}
+
+static void test_tap_wakes_and_postpones_idle() {
+  inv::InventoryModel model;
+  app::Controller controller(model, kConfig);
+  controller.begin(0);
+
+  controller.tick(150);
+  TEST_ASSERT_TRUE(controller.overviewActive());
+  TEST_ASSERT_EQUAL_INT(
+      static_cast<int>(app::InputResult::kWakeOnly),
+      static_cast<int>(controller.tap(160)));
+  TEST_ASSERT_FALSE(controller.overviewActive());
+
+  // An awake tap changes nothing but still counts as activity.
+  TEST_ASSERT_EQUAL_INT(
+      static_cast<int>(app::InputResult::kIgnored),
+      static_cast<int>(controller.tap(170)));
+  TEST_ASSERT_EQUAL_INT(
+      static_cast<int>(app::TickResult::kNoChange),
+      static_cast<int>(controller.tick(319)));
+  TEST_ASSERT_EQUAL_INT(
+      static_cast<int>(app::TickResult::kOverviewDue),
+      static_cast<int>(controller.tick(320)));
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_commit_is_debounced_and_failed_save_retries);
@@ -144,5 +261,11 @@ int main(int, char**) {
   RUN_TEST(test_timers_handle_millis_rollover);
   RUN_TEST(test_recommit_during_debounce_restarts_timer);
   RUN_TEST(test_commit_during_retry_window_uses_debounce_delay);
+  RUN_TEST(test_overview_after_idle_and_first_input_only_wakes);
+  RUN_TEST(test_overview_waits_for_edit_to_cancel);
+  RUN_TEST(test_vertical_swipe_in_browse_commits_directly);
+  RUN_TEST(test_vertical_swipe_in_edit_adjusts_pending);
+  RUN_TEST(test_horizontal_swipe_browses_unless_editing);
+  RUN_TEST(test_tap_wakes_and_postpones_idle);
   return UNITY_END();
 }

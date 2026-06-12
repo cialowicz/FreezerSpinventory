@@ -64,6 +64,11 @@ class InventoryModel {
   // Leave edit mode discarding the pending quantity (e.g. inactivity).
   void cancelEdit();
 
+  // Adjusts the selected item's committed quantity directly, bypassing edit
+  // mode (touch swipes commit immediately). Clamps to [0, kMaxQuantity];
+  // returns true and marks the model dirty if the quantity changed.
+  bool adjustSelectedQuantity(int delta);
+
   // Direct write, used when loading persisted state. Clamps to kMaxQuantity.
   void setQuantity(size_t i, uint8_t q);
 

@@ -233,6 +233,24 @@ static void test_persistence_maps_quantities_by_stable_id() {
   TEST_ASSERT_EQUAL_UINT8(22, restored.item(1).quantity);
 }
 
+static void test_adjust_selected_quantity_clamps_and_marks_dirty() {
+  InventoryModel m;
+  TEST_ASSERT_FALSE(m.adjustSelectedQuantity(-1));  // clamped at 0
+  TEST_ASSERT_FALSE(m.dirty());
+  TEST_ASSERT_TRUE(m.adjustSelectedQuantity(1));
+  TEST_ASSERT_EQUAL_UINT8(1, m.item(0).quantity);
+  TEST_ASSERT_TRUE(m.dirty());
+
+  m.setQuantity(0, kMaxQuantity);
+  m.clearDirty();
+  TEST_ASSERT_FALSE(m.adjustSelectedQuantity(1));  // clamped at max
+  TEST_ASSERT_FALSE(m.dirty());
+
+  m.rotate(2);  // adjustment follows the selection
+  TEST_ASSERT_TRUE(m.adjustSelectedQuantity(1));
+  TEST_ASSERT_EQUAL_UINT8(1, m.item(2).quantity);
+}
+
 static void test_mark_dirty_sets_dirty() {
   InventoryModel m;
   TEST_ASSERT_FALSE(m.dirty());
@@ -383,6 +401,7 @@ int main(int, char**) {
   RUN_TEST(test_persistence_round_trip);
   RUN_TEST(test_persistence_rejects_corruption_without_mutating_model);
   RUN_TEST(test_persistence_maps_quantities_by_stable_id);
+  RUN_TEST(test_adjust_selected_quantity_clamps_and_marks_dirty);
   RUN_TEST(test_mark_dirty_sets_dirty);
   RUN_TEST(test_encode_rejects_null_and_small_buffer);
   RUN_TEST(test_decode_rejects_null_truncated_and_oversized);

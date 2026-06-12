@@ -12,7 +12,7 @@ rewrite of [FridgePinventory](https://github.com/cialowicz/FridgePinventory)
 - ESP32-S3 (16MB flash, 8MB PSRAM)
 - 2.1" round 480x480 IPS panel (ST7701S, parallel RGB)
 - Rotary knob with push button (button via PCF8574 I/O expander)
-- Capacitive touch (CST816 — unused; the knob is the whole UX)
+- Capacitive touch (CST816 — secondary swipe input)
 
 No wiring required — everything is on the board. Power/flash over USB-C.
 
@@ -21,7 +21,11 @@ No wiring required — everything is on the board. Power/flash over USB-C.
 - **Turn** the knob to spin through the item list (wraps around).
 - **Press** to edit the selected item; the accent ring turns amber.
 - **Turn** to raise/lower the count (0–50), **press** to save.
+- **Swipe** instead, if you prefer: left/right to change items, up/down to
+  raise/lower the count (saved automatically, no edit mode needed).
 - Walk away mid-edit and the pending change is discarded after 15s.
+- After 5s idle the display switches to an at-a-glance list of every item
+  and its count; any touch or knob input returns to the carousel.
 - Counts persist to flash (NVS), debounced to limit wear. The UI confirms only
   after a verified write and retries transient failures.
 - If stored counts can't be restored at boot, the display says

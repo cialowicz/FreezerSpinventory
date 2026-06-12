@@ -20,6 +20,11 @@ void showEditCancelledToast();
 // and the displayed zero counts are not to be trusted.
 void showLoadFailedNotice();
 
+// Idle at-a-glance view listing every item and count.
+void showOverview();
+// Returns to the single-item carousel (no-op when already shown).
+void showCarousel();
+
 // Call on any user input. Dismisses an active toast/notice so the hint area
 // reflects the interaction the user is actually having.
 void noteUserActivity();

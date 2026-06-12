@@ -46,6 +46,17 @@ void InventoryModel::cancelEdit() {
   editing_ = false;
 }
 
+bool InventoryModel::adjustSelectedQuantity(int delta) {
+  const uint8_t clamped =
+      clampQuantity((long)items_[selected_].quantity + delta);
+  if (clamped == items_[selected_].quantity) {
+    return false;
+  }
+  items_[selected_].quantity = clamped;
+  dirty_ = true;
+  return true;
+}
+
 void InventoryModel::setQuantity(size_t i, uint8_t q) {
   if (i >= kItemCount) return;
   uint8_t clamped = clampQuantity(q);

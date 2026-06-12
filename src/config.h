@@ -44,6 +44,12 @@
 #define PIN_I2C_SDA 38
 #define PIN_I2C_SCL 39
 
+// CST816 capacitive touch controller (polled; reset via PCF8574 P0)
+#define CST816_ADDR 0x15
+#define TOUCH_POLL_MS 20        // gesture sampling cadence
+#define TOUCH_SWIPE_MIN_PX 60   // min travel along dominant axis for a swipe
+#define TOUCH_TAP_MAX_MS 300    // max press duration for a tap
+
 // PCF8574 expander, address 0x21:
 //   P0 = touch reset, P3 = LCD power, P4 = LCD reset (active low),
 //   P5 = encoder push button (active low)
@@ -60,11 +66,12 @@
 #define EDIT_TIMEOUT_MS 15000      // discard pending edit and leave edit mode
 #define SAVE_DEBOUNCE_MS 2000      // settle time before writing NVS
 #define SAVE_RETRY_MS 10000        // retry delay after an NVS failure
+#define OVERVIEW_DELAY_MS 5000     // idle time before the at-a-glance view
 #define BACKLIGHT_DIM_MS 60000     // idle time before dimming
 #define BACKLIGHT_FULL 255
 #define BACKLIGHT_DIM 40
 
-// The wake-only-input and edit-cancel interactions assume an abandoned edit
-// times out before the backlight ever dims mid-edit.
-static_assert(EDIT_TIMEOUT_MS < BACKLIGHT_DIM_MS,
-              "edit timeout must elapse before the idle backlight dim");
+// The overview defers while an edit is active (it appears once the edit
+// times out), but it must get its turn at full brightness before the dim.
+static_assert(OVERVIEW_DELAY_MS < BACKLIGHT_DIM_MS,
+              "the overview should show at full brightness before dimming");

@@ -28,6 +28,9 @@ lv_obj_t* qtyLabel = nullptr;
 lv_obj_t* hintLabel = nullptr;
 lv_obj_t* dots[inv::kItemCount] = {nullptr};
 
+lv_obj_t* overviewPanel = nullptr;
+lv_obj_t* overviewQtyLabels[inv::kItemCount] = {nullptr};
+
 constexpr uint32_t kToastMs = 1200;
 
 bool toastActive = false;
@@ -53,6 +56,55 @@ void toastTimerCb(lv_timer_t*) {
   toastTimer = nullptr;
   toastActive = false;
   setHintForMode();
+}
+
+void setHidden(lv_obj_t* obj, bool hidden) {
+  if (hidden) {
+    lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
+  } else {
+    lv_obj_clear_flag(obj, LV_OBJ_FLAG_HIDDEN);
+  }
+}
+
+void setCarouselHidden(bool hidden) {
+  setHidden(qtyArc, hidden);
+  setHidden(nameLabel, hidden);
+  setHidden(qtyLabel, hidden);
+  setHidden(hintLabel, hidden);
+  for (size_t i = 0; i < inv::kItemCount; i++) {
+    setHidden(dots[i], hidden);
+  }
+}
+
+// At-a-glance list: one name/count row per item, sized to stay inside the
+// round panel's safe area at the top and bottom rows.
+void buildOverview(lv_obj_t* scr) {
+  constexpr lv_coord_t kRowHeight = 38;
+  constexpr lv_coord_t kPanelWidth = 350;
+
+  overviewPanel = lv_obj_create(scr);
+  lv_obj_set_size(overviewPanel, kPanelWidth,
+                  kRowHeight * (lv_coord_t)inv::kItemCount);
+  lv_obj_center(overviewPanel);
+  lv_obj_set_style_bg_opa(overviewPanel, LV_OPA_TRANSP, 0);
+  lv_obj_set_style_border_width(overviewPanel, 0, 0);
+  lv_obj_set_style_pad_all(overviewPanel, 0, 0);
+  lv_obj_clear_flag(overviewPanel, LV_OBJ_FLAG_SCROLLABLE);
+
+  for (size_t i = 0; i < inv::kItemCount; i++) {
+    const lv_coord_t rowY = (lv_coord_t)(i * kRowHeight);
+    lv_obj_t* name = lv_label_create(overviewPanel);
+    lv_obj_set_style_text_font(name, &lv_font_montserrat_20, 0);
+    lv_obj_set_style_text_color(name, kText, 0);
+    lv_label_set_text(name, inv::kCatalog[i].name);
+    lv_obj_align(name, LV_ALIGN_TOP_LEFT, 0, rowY);
+
+    overviewQtyLabels[i] = lv_label_create(overviewPanel);
+    lv_obj_set_style_text_font(overviewQtyLabels[i],
+                               &lv_font_montserrat_20, 0);
+    lv_obj_align(overviewQtyLabels[i], LV_ALIGN_TOP_RIGHT, 0, rowY);
+  }
+  lv_obj_add_flag(overviewPanel, LV_OBJ_FLAG_HIDDEN);
 }
 
 // Shows a status message in the hint area. autoDismissMs == 0 keeps the
@@ -122,6 +174,8 @@ void init(inv::InventoryModel* m) {
   lv_obj_set_style_text_font(hintLabel, &lv_font_montserrat_20, 0);
   lv_obj_align(hintLabel, LV_ALIGN_CENTER, 0, 130);
 
+  buildOverview(scr);
+
   refresh();
 }
 
@@ -170,6 +224,28 @@ void showEditCancelledToast() {
 
 void showLoadFailedNotice() {
   showToast("Inventory not restored", kRed, 0);
+}
+
+void showOverview() {
+  if (model == nullptr) {
+    return;
+  }
+  for (size_t i = 0; i < inv::kItemCount; i++) {
+    const uint8_t qty = model->item(i).quantity;
+    char buf[8];
+    snprintf(buf, sizeof(buf), "%u", (unsigned)qty);
+    lv_label_set_text(overviewQtyLabels[i], buf);
+    lv_obj_set_style_text_color(overviewQtyLabels[i],
+                                qty == 0 ? kRed : kTeal, 0);
+  }
+  setCarouselHidden(true);
+  setHidden(overviewPanel, false);
+}
+
+void showCarousel() {
+  setHidden(overviewPanel, true);
+  setCarouselHidden(false);
+  refresh();
 }
 
 void noteUserActivity() {

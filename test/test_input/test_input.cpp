@@ -4,6 +4,12 @@
 
 #include "button_debouncer.h"
 #include "rotary_decoder.h"
+#include "swipe_detector.h"
+
+static void assertGesture(input::Gesture expected, input::Gesture actual) {
+  TEST_ASSERT_EQUAL_INT(static_cast<int>(expected),
+                        static_cast<int>(actual));
+}
 
 void setUp() {}
 void tearDown() {}
@@ -93,6 +99,52 @@ static void test_detent_accumulator_carries_partial_steps() {
   TEST_ASSERT_EQUAL_INT(0, remainder);
 }
 
+static void test_swipes_classified_on_release() {
+  input::SwipeDetector d(60, 300);
+
+  // Rightward drag: nothing emitted while the finger is down.
+  assertGesture(input::Gesture::kNone, d.update(true, 100, 200, 0));
+  assertGesture(input::Gesture::kNone, d.update(true, 150, 205, 20));
+  assertGesture(input::Gesture::kNone, d.update(true, 200, 210, 40));
+  assertGesture(input::Gesture::kSwipeRight, d.update(false, 0, 0, 60));
+
+  d.update(true, 300, 240, 100);
+  d.update(true, 180, 250, 140);
+  assertGesture(input::Gesture::kSwipeLeft, d.update(false, 0, 0, 160));
+
+  // Screen coordinates grow downward: an upward swipe decreases y.
+  d.update(true, 240, 300, 200);
+  d.update(true, 245, 180, 240);
+  assertGesture(input::Gesture::kSwipeUp, d.update(false, 0, 0, 260));
+
+  d.update(true, 240, 180, 300);
+  d.update(true, 250, 320, 340);
+  assertGesture(input::Gesture::kSwipeDown, d.update(false, 0, 0, 360));
+}
+
+static void test_diagonal_swipe_uses_dominant_axis() {
+  input::SwipeDetector d(60, 300);
+  d.update(true, 100, 100, 0);
+  d.update(true, 180, 220, 40);  // dx=80, dy=120: vertical wins
+  assertGesture(input::Gesture::kSwipeDown, d.update(false, 0, 0, 60));
+}
+
+static void test_tap_and_subthreshold_motion() {
+  input::SwipeDetector d(60, 300);
+
+  // Short press with little travel is a tap.
+  d.update(true, 240, 240, 0);
+  d.update(true, 250, 245, 30);
+  assertGesture(input::Gesture::kTap, d.update(false, 0, 0, 60));
+
+  // A long lingering press with little travel is nothing.
+  d.update(true, 240, 240, 1000);
+  assertGesture(input::Gesture::kNone, d.update(false, 0, 0, 1500));
+
+  // Release without any preceding touch is nothing.
+  assertGesture(input::Gesture::kNone, d.update(false, 0, 0, 2000));
+}
+
 int main(int, char**) {
   UNITY_BEGIN();
   RUN_TEST(test_button_polling_and_debounce);
@@ -100,5 +152,8 @@ int main(int, char**) {
   RUN_TEST(test_button_held_at_boot_is_not_a_press);
   RUN_TEST(test_quadrature_sequences_and_invalid_transition);
   RUN_TEST(test_detent_accumulator_carries_partial_steps);
+  RUN_TEST(test_swipes_classified_on_release);
+  RUN_TEST(test_diagonal_swipe_uses_dominant_axis);
+  RUN_TEST(test_tap_and_subthreshold_motion);
   return UNITY_END();
 }

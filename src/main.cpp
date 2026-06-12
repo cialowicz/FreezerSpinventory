@@ -13,6 +13,8 @@
 #include "inventory_model.h"
 #include "io_expander.h"
 #include "storage.h"
+#include "swipe_detector.h"
+#include "touch.h"
 #include "ui.h"
 
 namespace {
@@ -25,11 +27,14 @@ app::Controller controller(model,
                                .editTimeoutMs = EDIT_TIMEOUT_MS,
                                .saveDebounceMs = SAVE_DEBOUNCE_MS,
                                .saveRetryMs = SAVE_RETRY_MS,
+                               .overviewDelayMs = OVERVIEW_DELAY_MS,
                                .backlightDimMs = BACKLIGHT_DIM_MS,
                                .backlightFullLevel = BACKLIGHT_FULL,
                                .backlightDimLevel = BACKLIGHT_DIM,
                            });
 input::ButtonDebouncer buttonDebouncer(15, 30);
+TouchPanel touch;
+input::SwipeDetector swipeDetector(TOUCH_SWIPE_MIN_PX, TOUCH_TAP_MAX_MS);
 uint8_t consecutiveButtonReadErrors = 0;
 
 enum class ButtonPollResult {
@@ -71,6 +76,66 @@ void handleButtonReadError(uint32_t now) {
   ESP.restart();
   while (true) {
     delay(1000);
+  }
+}
+
+// Mirrors a controller decision to the UI. Wake-only input restores the
+// carousel (the overview/dim state consumed the gesture); model changes
+// refresh; scheduled commits additionally announce the pending save.
+void applyInputResult(app::InputResult result) {
+  switch (result) {
+    case app::InputResult::kWakeOnly:
+      ui::showCarousel();
+      break;
+    case app::InputResult::kCommitScheduled:
+      ui::showSavingToast();
+      ui::refresh();
+      break;
+    case app::InputResult::kModelChanged:
+      ui::refresh();
+      break;
+    case app::InputResult::kIgnored:
+      break;
+  }
+}
+
+// Polls the CST816 and feeds samples to the gesture classifier. Swipes are
+// the secondary input mode: horizontal = browse, vertical = adjust count.
+void pollTouch(uint32_t now) {
+  static uint32_t lastPollMs = 0;
+  static bool hasPolled = false;
+  if (hasPolled && now - lastPollMs < TOUCH_POLL_MS) {
+    return;
+  }
+  hasPolled = true;
+  lastPollMs = now;
+
+  int16_t x = 0;
+  int16_t y = 0;
+  const bool touched = touch.readTouch(x, y);
+  const input::Gesture gesture = swipeDetector.update(touched, x, y, now);
+  if (gesture == input::Gesture::kNone) {
+    return;
+  }
+  ui::noteUserActivity();
+  switch (gesture) {
+    case input::Gesture::kSwipeLeft:  // flick the list left: next item
+      applyInputResult(controller.swipeHorizontal(1, now));
+      break;
+    case input::Gesture::kSwipeRight:
+      applyInputResult(controller.swipeHorizontal(-1, now));
+      break;
+    case input::Gesture::kSwipeUp:
+      applyInputResult(controller.swipeVertical(1, now));
+      break;
+    case input::Gesture::kSwipeDown:
+      applyInputResult(controller.swipeVertical(-1, now));
+      break;
+    case input::Gesture::kTap:
+      applyInputResult(controller.tap(now));
+      break;
+    default:
+      break;
   }
 }
 
@@ -125,6 +190,11 @@ void setup() {
     }
   }
   knob.begin(PIN_ENCODER_A, PIN_ENCODER_B, ENCODER_REVERSED);
+  if (!touch.begin()) {
+    // Non-fatal: the chip wakes on the first touch event and answers polls
+    // while a finger is down, so gestures still work without this.
+    Serial.println("Touch auto-sleep disable failed");
+  }
   ui::init(&model);
 
   const uint32_t now = millis();
@@ -148,10 +218,7 @@ void loop() {
   int steps = knob.consumeSteps();
   if (steps != 0) {
     ui::noteUserActivity();
-    const app::InputResult result = controller.rotate(steps, now);
-    if (result == app::InputResult::kModelChanged) {
-      ui::refresh();
-    }
+    applyInputResult(controller.rotate(steps, now));
   }
 
   const ButtonPollResult buttonEvent = pollButton(now);
@@ -160,21 +227,19 @@ void loop() {
   } else if (buttonEvent == ButtonPollResult::kPressed) {
     consecutiveButtonReadErrors = 0;
     ui::noteUserActivity();
-    const app::InputResult result = controller.press(now);
-    if (result == app::InputResult::kCommitScheduled) {
-      ui::showSavingToast();
-    }
-    if (result == app::InputResult::kModelChanged ||
-        result == app::InputResult::kCommitScheduled) {
-      ui::refresh();
-    }
+    applyInputResult(controller.press(now));
   } else if (buttonEvent == ButtonPollResult::kNoChange) {
     consecutiveButtonReadErrors = 0;
   }
 
-  if (controller.tick(now) == app::TickResult::kEditCancelled) {
+  pollTouch(now);
+
+  const app::TickResult tickResult = controller.tick(now);
+  if (tickResult == app::TickResult::kEditCancelled) {
     ui::refresh();
     ui::showEditCancelledToast();
+  } else if (tickResult == app::TickResult::kOverviewDue) {
+    ui::showOverview();
   }
 
   if (controller.saveDue(now)) {
